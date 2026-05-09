@@ -1,10 +1,13 @@
 // src/pages/CandidatesPage.jsx
 import { useState, useEffect } from 'react'
+import { useAuth } from '../hooks/useAuth'
+import { logProfileView } from '../utils/activityLogger'
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
 import { db } from '../firebase'
 import { KOVILS, INDUSTRIES } from '../utils/constants'
 
 export default function CandidatesPage() {
+  const { user, profile } = useAuth()
   const [candidates, setCandidates] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch]   = useState('')

@@ -12,12 +12,14 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { sendWelcomeEmail } from '../utils/emailjs'
+import { logLogin } from '../utils/activityLogger'
 
 const AuthContext = createContext(null)
 
 // ── Add your admin Gmail(s) here ───────────────────────────────────────────
-  const ADMIN_EMAILS = ['slnaiyar@gmail.com']
-
+const ADMIN_EMAILS = [
+  'nagarathar.nalan@gmail.com',  // ← your admin Gmail
+]
 // ──────────────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }) {
@@ -47,6 +49,7 @@ export function AuthProvider({ children }) {
     const cred = await signInWithEmailAndPassword(auth, email, password)
     const snap = await getDoc(doc(db, 'nj_users', cred.user.uid))
     if (snap.exists()) setProfile(snap.data())
+    logLogin({ uid: cred.user.uid, email: cred.user.email, displayName: cred.user.displayName || '' }).catch(() => {})
     return cred.user
   }
 
@@ -103,6 +106,7 @@ export function AuthProvider({ children }) {
     } else {
       setProfile(snap.data())
     }
+    logLogin({ uid: cred.user.uid, email: cred.user.email, displayName: cred.user.displayName || '' }).catch(() => {})
     return cred.user
   }
 
