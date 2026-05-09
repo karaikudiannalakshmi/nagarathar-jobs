@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { doc, updateDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
-import { KOVILS, INDUSTRIES, SKILL_TAGS } from '../utils/constants'
+import { KOVILS, INDUSTRIES, DEFAULT_SKILLS } from '../utils/constants'
 
 export default function ProfilePage() {
   const { user, profile } = useAuth()
@@ -138,7 +138,7 @@ export default function ProfilePage() {
               <h2 style={{ fontSize: '1.3rem', marginBottom: 8 }}>Skills</h2>
               <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: 16 }}>Select your skills</p>
               <div className="tag-list">
-                {SKILL_TAGS.map(s => (
+                {DEFAULT_SKILLS.map(s => (
                   <button key={s} type="button" onClick={() => toggleSkill(s)}
                     style={{
                       padding: '5px 14px', borderRadius: 20, fontSize: '13px', cursor: 'pointer',
