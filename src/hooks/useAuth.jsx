@@ -17,8 +17,12 @@ import { logLogin } from '../utils/activityLogger'
 const AuthContext = createContext(null)
 
 // ── Add your admin Gmail(s) here ───────────────────────────────────────────
+// Admin emails — hardcoded + also reads from VITE_ADMIN_EMAILS env var
 const ADMIN_EMAILS = [
-  'nagarathar.nalan@gmail.com',  // ← your admin Gmail
+  'slnaiyar@gmail.com',
+  ...(import.meta.env.VITE_ADMIN_EMAILS
+    ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.trim()).filter(Boolean)
+    : []),
 ]
 // ──────────────────────────────────────────────────────────────────────────
 
