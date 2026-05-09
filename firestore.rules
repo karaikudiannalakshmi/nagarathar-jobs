@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: is this a signed-in user?
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Helper: is this the document owner?
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    // nj_users — members can read all profiles, edit own only
+    match /nj_users/{uid} {
+      allow read:   if isAuth();
+      allow create: if isAuth() && isOwner(uid);
+      allow update: if isAuth() && isOwner(uid);
+      allow delete: if false;
+    }
+
+    // nj_jobs — any member can read active jobs; any member can post
+    match /nj_jobs/{jobId} {
+      allow read:   if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() && (
+        resource.data.postedBy == request.auth.uid
+      );
+      allow delete: if isAuth() && resource.data.postedBy == request.auth.uid;
+    }
+
+    // nj_applications — applicant can create; poster can read their job's apps; applicant can read own
+    match /nj_applications/{appId} {
+      allow read:   if isAuth() && (
+        resource.data.applicantUid == request.auth.uid ||
+        resource.data.posterUid    == request.auth.uid
+      );
+      allow create: if isAuth() && request.resource.data.applicantUid == request.auth.uid;
+      allow update: if isAuth() && resource.data.posterUid == request.auth.uid;
+      allow delete: if false;
+    }
+  }
+}
