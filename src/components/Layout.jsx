@@ -19,11 +19,7 @@ export default function Layout() {
       <nav style={S.nav}>
         <div style={S.navInner}>
           <Link to="/" style={S.logo}>
-            <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>𓃵</span>
-            <span>
-              <div style={S.logoMain}>Nagarathar Jobs</div>
-              <div style={S.logoSub}>{t('nav','community')}</div>
-            </span>
+            <img src="/logo.png" style={{ height: 44, width: 'auto' }} alt="Nagarathar Jobs" />
           </Link>
 
           {user && (
@@ -133,8 +129,6 @@ const S = {
   nav: { background:'var(--white)', borderBottom:'1px solid var(--border)', position:'sticky', top:0, zIndex:50, boxShadow:'var(--shadow-sm)' },
   navInner: { maxWidth:1100, margin:'0 auto', padding:'0 20px', height:64, display:'flex', alignItems:'center', justifyContent:'space-between' },
   logo: { display:'flex', alignItems:'center', gap:10, textDecoration:'none', color:'inherit' },
-  logoMain: { fontFamily:"'Cormorant Garamond', serif", fontSize:'1.2rem', fontWeight:700, color:'var(--charcoal)', lineHeight:1.2 },
-  logoSub: { fontSize:'10px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.06em' },
   navLinks: { display:'flex', alignItems:'center', gap:4 },
   langToggle: {
     display:'flex', alignItems:'center', gap:2,
