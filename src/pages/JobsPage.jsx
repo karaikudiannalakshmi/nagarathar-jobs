@@ -1,11 +1,13 @@
 // src/pages/JobsPage.jsx
 import { useState, useEffect } from 'react'
+import { useLanguage } from '../hooks/useLanguage'
 import { Link } from 'react-router-dom'
 import { collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore'
 import { db } from '../firebase'
 import { INDUSTRIES, JOB_TYPES, EDUCATION_LEVELS } from '../utils/constants'
 
 export default function JobsPage() {
+  const { t } = useLanguage()
   const [jobs, setJobs]           = useState([])
   const [loading, setLoading]     = useState(true)
   const [search, setSearch]       = useState('')

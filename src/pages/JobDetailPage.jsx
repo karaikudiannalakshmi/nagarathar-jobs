@@ -1,5 +1,6 @@
 // src/pages/JobDetailPage.jsx
 import { useState, useEffect } from 'react'
+import { useLanguage } from '../hooks/useLanguage'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   doc, getDoc, collection, addDoc, serverTimestamp,
@@ -13,6 +14,7 @@ import { logApplication } from '../utils/activityLogger'
 export default function JobDetailPage() {
   const { id }            = useParams()
   const { user, profile } = useAuth()
+  const { t } = useLanguage()
   const navigate          = useNavigate()
   const [job, setJob]           = useState(null)
   const [loading, setLoading]   = useState(true)
