@@ -34,8 +34,7 @@ export default function HomePage() {
           {/* Left: text */}
           <div style={S.heroText}>
             <div style={S.heroBadge}>
-              <img src="/logo.png" style={{ height: 36, width: 'auto', marginRight: 10, verticalAlign: 'middle' }} alt="" />
-              For the Nagarathar Community
+For the Nagarathar Community
             </div>
             <h1 style={S.heroTitle}>
               Connect Talent with{' '}
@@ -268,8 +267,7 @@ export default function HomePage() {
       {/* ══ CTA ══ */}
       <section style={S.ctaSection}>
         <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: 700, margin: '0 auto', padding: '0 20px' }}>
-          <img src="/logo.png" style={{ height: 60, width: 'auto', marginBottom: 24, filter: 'brightness(1.1)' }} alt="Nagarathar Jobs" />
-          <h2 style={{ fontFamily: 'Georgia,serif', fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', color: C.dark, marginBottom: 16 }}>
+<h2 style={{ fontFamily: 'Georgia,serif', fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', color: C.dark, marginBottom: 16 }}>
             Ready to Get <span style={{ color: C.terracotta }}>Started?</span>
           </h2>
           <p style={{ color: C.slate, fontSize: '1.05rem', lineHeight: 1.75, marginBottom: 36 }}>
