@@ -141,6 +141,135 @@ function buildEmail(type, d) {
         `,
       }
 
+    // ── Candidate notified of matching job ──────────────────────────────────
+    case 'candidate_digest':
+      return {
+        to:      d.to_email,
+        subject: `👥 ${d.candidate_count} Matching Candidate${d.candidate_count>1?'s':''} Available for "${d.job_title}"`,
+        body: `
+          <h2>Matching Candidates for Your Job Posting 👥</h2>
+          <p>Dear <strong>${d.employer_name}</strong>,</p>
+          <p>We found <strong>${d.candidate_count} Nagarathar candidate${d.candidate_count>1?'s':''}</strong> whose profiles match your job posting <strong>"${d.job_title}"</strong>.</p>
+          <p style="font-size:14px;color:#8A7060;margin-bottom:16px;">These candidates are all part of the Nagarathar community and are actively looking for opportunities.</p>
+          <table style="width:100%;border-collapse:collapse;border:1px solid #E8D5B8;border-radius:8px;overflow:hidden;margin-bottom:24px;">
+            <thead>
+              <tr style="background:#FAF7F0;">
+                <th style="padding:10px 12px;text-align:left;font-size:13px;color:#8A7060;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #E8D5B8;">Matching Candidates</th>
+              </tr>
+            </thead>
+            <tbody>${d.candidates_list}</tbody>
+          </table>
+          ${d.candidate_count > 10 ? `<p style="font-size:13px;color:#8A7060;">Showing top 10 of ${d.candidate_count} matches. View all on the platform.</p>` : ''}
+          <p>You can contact candidates directly via email or view their full profiles on the platform.</p>
+          <a href="${d.candidates_url}" style="${btnStyle}">View All Candidates →</a>
+          <p style="margin-top:20px;font-size:13px;color:#8A7060;line-height:1.6;">
+            Going forward, you will be notified automatically whenever a new matching candidate registers.
+          </p>
+        `,
+      }
+
+    case 'job_digest':
+      return {
+        to:      d.to_email,
+        subject: `💼 ${d.job_count} Job${d.job_count>1?'s':''} Waiting for You on Nagarathar Jobs`,
+        body: `
+          <h2>Nagarathar Jobs — Active Opportunities 💼</h2>
+          <p>Dear <strong>${d.candidate_name}</strong>,</p>
+          <p>We have <strong>${d.job_count} job opportunit${d.job_count>1?'ies':'y'}</strong> currently active on <strong>Nagarathar Jobs</strong> that may interest you.</p>
+          <p style="font-size:14px;color:#8A7060;margin-bottom:16px;">These are all posted by Nagarathar community members — trusted opportunities within our network.</p>
+          <table style="width:100%;border-collapse:collapse;border:1px solid #E8D5B8;border-radius:8px;overflow:hidden;margin-bottom:24px;">
+            <thead>
+              <tr style="background:#FAF7F0;">
+                <th style="padding:10px 12px;text-align:left;font-size:13px;color:#8A7060;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #E8D5B8;">Job Opportunities</th>
+              </tr>
+            </thead>
+            <tbody>${d.jobs_list}</tbody>
+          </table>
+          <p>Log in now to view full details and apply with a single click.</p>
+          <a href="${d.jobs_url}" style="${btnStyle}">Browse All Jobs & Apply →</a>
+          <p style="margin-top:24px;font-size:13px;color:#8A7060;line-height:1.6;">
+            This is a one-time notification from Nagarathar Jobs. 
+            Going forward you will receive alerts only when a job matches your specific profile.
+          </p>
+        `,
+      }
+
+    case 'job_match_candidate':
+      return {
+        to:      d.to_email,
+        subject: `🎯 Job Match Found: ${d.job_title} at ${d.company}`,
+        body: `
+          <h2>We Found a Job That Matches Your Profile! 🎯</h2>
+          <p>Dear <strong>${d.candidate_name}</strong>,</p>
+          <p>Great news! A new job has been posted on <strong>Nagarathar Jobs</strong> that matches your profile.</p>
+          <table style="${tableStyle}">
+            <tr><td style="${tdLabel}">Job Title</td><td style="${tdValue}"><strong>${d.job_title}</strong></td></tr>
+            <tr><td style="${tdLabel}">Company</td><td style="${tdValue}">${d.company}</td></tr>
+            <tr><td style="${tdLabel}">Location</td><td style="${tdValue}">📍 ${d.location}</td></tr>
+            <tr><td style="${tdLabel}">Salary</td><td style="${tdValue}">💰 ${d.salary}</td></tr>
+            ${d.industry ? `<tr><td style="${tdLabel}">Industry</td><td style="${tdValue}">${d.industry}</td></tr>` : ''}
+            <tr><td style="${tdLabel}">Match Reason</td><td style="${tdValue}"><span style="color:#B8860B;font-weight:600;">✨ ${d.match_reason}</span></td></tr>
+          </table>
+          <p>This opportunity is exclusively available within our Nagarathar community. Be among the first to apply!</p>
+          <a href="${d.job_url}" style="${btnStyle}">View Job & Apply Now →</a>
+          <p style="margin-top:20px;font-size:13px;color:#8A8070;">
+            You received this alert because your profile matches this job. 
+            Update your profile to improve future matches.
+          </p>
+        `,
+      }
+
+    // ── Employer notified of matching candidate ──────────────────────────────
+    case 'job_match_employer':
+      return {
+        to:      d.to_email,
+        subject: `🎯 New Matching Candidate: ${d.candidate_name} for ${d.job_title}`,
+        body: `
+          <h2>A Matching Candidate Has Joined! 🎯</h2>
+          <p>Dear <strong>${d.employer_name}</strong>,</p>
+          <p>A new member has registered on <strong>Nagarathar Jobs</strong> whose profile matches your job posting <strong>${d.job_title}</strong>.</p>
+          <table style="${tableStyle}">
+            <tr><td style="${tdLabel}">Candidate</td><td style="${tdValue}"><strong>${d.candidate_name}</strong></td></tr>
+            <tr><td style="${tdLabel}">Email</td><td style="${tdValue}"><a href="mailto:${d.candidate_email}">${d.candidate_email}</a></td></tr>
+            <tr><td style="${tdLabel}">Location</td><td style="${tdValue}">📍 ${d.candidate_city}</td></tr>
+            <tr><td style="${tdLabel}">Kovil</td><td style="${tdValue}">${d.candidate_kovil}</td></tr>
+            <tr><td style="${tdLabel}">Industry</td><td style="${tdValue}">${d.candidate_industry}</td></tr>
+            <tr><td style="${tdLabel}">Experience</td><td style="${tdValue}">${d.candidate_experience}</td></tr>
+            <tr><td style="${tdLabel}">Qualification</td><td style="${tdValue}">${d.candidate_qualification}</td></tr>
+            <tr><td style="${tdLabel}">Match Reason</td><td style="${tdValue}"><span style="color:#B8860B;font-weight:600;">✨ ${d.match_reason}</span></td></tr>
+          </table>
+          <p>You can view their full profile in the Candidates section and reach out directly.</p>
+          <div style="display:flex;gap:12px;margin-top:16px;">
+            <a href="${d.candidates_url}" style="${btnStyle}">View All Candidates →</a>
+          </div>
+          <p style="margin-top:20px;font-size:13px;color:#8A8070;">
+            You received this alert because a candidate's profile matches your job posting "${d.job_title}".
+          </p>
+        `,
+      }
+
+    case 'job_alert':
+      return {
+        to:      d.to_email,
+        subject: `New Job Alert: ${d.job_title} at ${d.company}`,
+        body: `
+          <h2>New Job Opportunity 💼</h2>
+          <p>Dear <strong>${d.candidate_name}</strong>,</p>
+          <p>A new job matching your profile has been posted on <strong>Nagarathar Jobs</strong>.</p>
+          <table style="${tableStyle}">
+            <tr><td style="${tdLabel}">Job Title</td><td style="${tdValue}"><strong>${d.job_title}</strong></td></tr>
+            <tr><td style="${tdLabel}">Company</td><td style="${tdValue}">${d.company}</td></tr>
+            <tr><td style="${tdLabel}">Location</td><td style="${tdValue}">${d.location}</td></tr>
+            <tr><td style="${tdLabel}">Salary</td><td style="${tdValue}">${d.salary}</td></tr>
+          </table>
+          <p>This opportunity is exclusively available within our Nagarathar community network.</p>
+          <a href="${d.job_url}" style="${btnStyle}">View Job & Apply →</a>
+          <p style="margin-top:20px;font-size:13px;color:#8A8070;">
+            You received this alert because your profile matches this job opportunity.
+          </p>
+        `,
+      }
+
     case 'admin_new_member':
       return {
         to:      d.to_email,
