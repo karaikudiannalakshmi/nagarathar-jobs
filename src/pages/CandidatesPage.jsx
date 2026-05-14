@@ -87,6 +87,7 @@ export default function CandidatesPage() {
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '1.05rem' }}>{c.displayName}</div>
                   {c.kovil && <div style={{ fontSize: '13px', color: 'var(--gold)' }}>{c.kovil} Kovil</div>}
+                {c.gender && <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{c.gender}</div>}
                   {c.city  && <div style={{ fontSize: '13px', color: 'var(--muted)' }}>📍 {c.city}</div>}
                 </div>
               </div>
@@ -137,6 +138,24 @@ export default function CandidatesPage() {
                     {selected.resumeText}
                   </div>
                 </>
+              )}
+              {selected.expectedSalary && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--muted)', marginBottom: 4 }}>EXPECTED SALARY</div>
+                  <span className="badge badge-green">💰 {selected.expectedSalary}</span>
+                </div>
+              )}
+              {selected.workExperience && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--muted)', marginBottom: 4 }}>EXPERIENCE</div>
+                  <span className="badge badge-muted">⏱ {selected.workExperience}</span>
+                </div>
+              )}
+              {selected.preferredLocation && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--muted)', marginBottom: 4 }}>PREFERRED LOCATION</div>
+                  <span className="tag">📍 {selected.preferredLocation}</span>
+                </div>
               )}
               {selected.linkedinUrl && (
                 <a href={selected.linkedinUrl} target="_blank" rel="noreferrer"
