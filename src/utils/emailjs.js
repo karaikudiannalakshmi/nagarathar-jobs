@@ -49,7 +49,14 @@ export function sendSeekerFollowup({ to_email, applicant_name, job_title, compan
   return sendEmail('seeker_followup', { to_email, applicant_name, job_title, company, days })
 }
 
-// ── 7. Dormant member reminder after 30 days of no login ────────────────────
+// ── 7. New member registration alert to admin ───────────────────────────────
+export function sendAdminNewMemberAlert({ display_name, email, kovil, city, lookingFor, gender }) {
+  return sendEmail('admin_new_member', { display_name, email, kovil, city, lookingFor, gender,
+    to_email: import.meta.env.VITE_ADMIN_EMAILS?.split(',')[0]?.trim() || 'slnaiyar@gmail.com'
+  })
+}
+
+// ── 8. Dormant member reminder after 30 days of no login ────────────────────
 export function sendDormantReminder({ to_email, display_name, days }) {
   return sendEmail('dormant_reminder', { to_email, display_name, days })
 }
