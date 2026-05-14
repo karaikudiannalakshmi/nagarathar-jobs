@@ -1,5 +1,6 @@
 // src/pages/ProfilePage.jsx
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { doc, updateDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
@@ -255,6 +256,8 @@ export default function ProfilePage() {
                     </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <span className={`badge badge-${job.status === 'active' ? 'green' : 'muted'}`}>{job.status}</span>
+                      <Link to={`/jobs/${job.id}/edit`} className="btn btn-ghost btn-sm">✏️ Edit</Link>
+                      <Link to={`/jobs/${job.id}`} className="btn btn-outline btn-sm">View</Link>
                     </div>
                   </div>
                 </div>
