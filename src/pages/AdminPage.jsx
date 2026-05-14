@@ -157,6 +157,7 @@ export default function AdminPage() {
   const [newSkill, setNewSkill] = useState('')
   const [skillSuggestions, setSkillSuggestions] = useState([])
   const [loading, setLoading] = useState(false)
+  const [dashError, setDashError] = useState('')
   const [toast, setToast]   = useState('')
 
   useEffect(() => {
@@ -179,17 +180,19 @@ export default function AdminPage() {
   // ── Dashboard data aggregation ──────────────────────────────────────────
   async function loadDashboard() {
     setLoading(true)
+    setDashError('')
     try {
-      const [uSnap, jSnap, aSnap, pSnap] = await Promise.all([
+      // Use simple collection reads — no compound queries to avoid index issues
+      const [uSnap, jSnap, aSnap] = await Promise.all([
         getDocs(collection(db, 'nj_users')),
         getDocs(collection(db, 'nj_jobs')),
         getDocs(collection(db, 'nj_applications')),
-        getDocs(query(collection(db, 'nj_applications'), where('status', '==', 'pending'))),
       ])
 
       const users  = uSnap.docs.map(d => d.data())
       const jobs   = jSnap.docs.map(d => d.data())
       const apps   = aSnap.docs.map(d => d.data())
+      const pendingAppsCount = apps.filter(a => a.status === 'pending').length
 
       // ── Jobs by industry ──
       const jobsByIndustry = {}
@@ -240,6 +243,32 @@ export default function AdminPage() {
       const skillSupply = {}
       users.forEach(u => (u.skills || []).forEach(s => { skillSupply[s] = (skillSupply[s] || 0) + 1 }))
 
+      // ── Candidates by gender ──
+      const candByGender = {}
+      users.forEach(u => {
+        const k = u.gender || 'Not specified'
+        candByGender[k] = (candByGender[k] || 0) + 1
+      })
+
+      // ── Job gender preference ──
+      const jobsByGender = {}
+      jobs.forEach(j => {
+        const k = j.genderPreference || 'Any'
+        jobsByGender[k] = (jobsByGender[k] || 0) + 1
+      })
+
+      // ── Job-Candidate matching ──
+      // Count candidates whose industry matches at least one active job
+      const activeJobIndustries = new Set(jobs.filter(j => j.status === 'active').map(j => j.industry).filter(Boolean))
+      const matchedCandidates = users.filter(u =>
+        (u.lookingFor === 'job' || u.lookingFor === 'both') &&
+        u.industry && activeJobIndustries.has(u.industry)
+      ).length
+
+      // New members this week
+      const weekAgo = Date.now() - 7 * 86400000
+      const newThisWeek = users.filter(u => u.createdAt?.toDate && u.createdAt.toDate().getTime() > weekAgo).length
+
       // ── Application funnel ──
       const funnel = { pending: 0, shortlisted: 0, interview: 0, hired: 0, rejected: 0 }
       apps.forEach(a => { if (funnel[a.status] !== undefined) funnel[a.status]++ })
@@ -255,7 +284,7 @@ export default function AdminPage() {
         totalUsers:   users.length,
         totalJobs:    jobs.filter(j => j.status === 'active').length,
         totalApps:    apps.length,
-        pendingApps:  pSnap.docs.length,
+        pendingApps:  pendingAppsCount,
         hired:        funnel.hired,
         thisWeek, thisMonth,
         jobsByIndustry: toSorted(jobsByIndustry),
@@ -266,29 +295,43 @@ export default function AdminPage() {
         candByCity:     toSorted(candByCity),
         skillDemand:    toSorted(skillDemand),
         skillSupply:    toSorted(skillSupply),
+        candByGender:   toSorted(candByGender),
+        jobsByGender:   toSorted(jobsByGender),
         funnel,
         seekers: users.filter(u => u.lookingFor === 'job' || u.lookingFor === 'both').length,
         employers: users.filter(u => u.lookingFor === 'hire' || u.lookingFor === 'both').length,
+        matchedCandidates,
+        newThisWeek,
       })
+    } catch(err) {
+      console.error('Dashboard load error:', err)
+      setDashError(err.message || 'Failed to load dashboard data')
     } finally { setLoading(false) }
   }
 
   async function loadJobs() {
     setLoading(true)
-    const snap = await getDocs(query(collection(db, 'nj_jobs'), orderBy('createdAt', 'desc')))
-    setJobs(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    const snap = await getDocs(collection(db, 'nj_jobs'))
+    const jobsData = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    jobsData.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
+    setJobs(jobsData)
     setLoading(false)
   }
   async function loadApps() {
     setLoading(true)
-    const snap = await getDocs(query(collection(db, 'nj_applications'), orderBy('createdAt', 'desc')))
-    setApps(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    const snap = await getDocs(collection(db, 'nj_applications'))
+    const appsData = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    // Sort client-side to avoid index requirement
+    appsData.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
+    setApps(appsData)
     setLoading(false)
   }
   async function loadUsers() {
     setLoading(true)
-    const snap = await getDocs(query(collection(db, 'nj_users'), orderBy('createdAt', 'desc')))
-    setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    const snap = await getDocs(collection(db, 'nj_users'))
+    const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    usersData.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
+    setUsers(usersData)
     setLoading(false)
   }
   async function loadSkills() {
@@ -387,16 +430,27 @@ export default function AdminPage() {
       {/* ════ DASHBOARD TAB ════ */}
       {tab === 'dashboard' && (
         <div>
-          {loading && <div style={{ textAlign:'center', padding:40 }}><div className="spinner" style={{ margin:'0 auto' }}/></div>}
+          {loading && <div style={{ textAlign:'center', padding:60 }}><div className="spinner" style={{ margin:'0 auto' }}/><p style={{ color:'var(--muted)', marginTop:16, fontSize:14 }}>Loading dashboard data…</p></div>}
+          {dashError && !loading && (
+            <div className="alert alert-error" style={{ marginTop:16 }}>
+              ⚠ {dashError}
+              <button onClick={loadDashboard} className="btn btn-ghost btn-sm" style={{ marginLeft:12 }}>Retry</button>
+            </div>
+          )}
 
           {d && (
             <>
               {/* KPI row */}
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:24 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:14 }}>
                 <StatCard icon="👥" value={d.totalUsers}  label="Registered Members" color="var(--blue)"  sub={`${d.seekers} seekers · ${d.employers} employers`}/>
                 <StatCard icon="💼" value={d.totalJobs}   label="Active Jobs"         color="var(--green)" sub={`${d.thisWeek} this week · ${d.thisMonth} this month`}/>
                 <StatCard icon="📨" value={d.totalApps}   label="Total Applications"  color="var(--gold)"  sub={`${d.pendingApps} pending review`}/>
-                <StatCard icon="🎉" value={d.hired}       label="Successful Placements" color="var(--green)" sub="Community successes"/>
+                <StatCard icon="🎉" value={d.hired} label="Successful Placements" color="var(--green)" sub="Community successes"/>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:24 }}>
+                <StatCard icon="🔍" value={d.seekers}            label="Job Seekers"            color="var(--blue)"  sub={`${d.newThisWeek} joined this week`}/>
+                <StatCard icon="🏢" value={d.employers}           label="Employers"              color="var(--gold)"  sub="Posted jobs"/>
+                <StatCard icon="✨" value={d.matchedCandidates}   label="Matching Candidates"    color="var(--green)" sub="Industry match with active jobs"/>
               </div>
 
               {/* Application funnel */}
@@ -465,6 +519,16 @@ export default function AdminPage() {
                 </ChartCard>
                 <ChartCard title="Skills Candidates Have" subtitle="What talent is available in community">
                   <HorizBar data={d.skillSupply} color="#1A6B3C"/>
+                </ChartCard>
+              </div>
+
+              {/* Gender charts */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+                <ChartCard title="Candidates by Gender" subtitle="Gender distribution of job seekers">
+                  <DonutChart data={d.candByGender} size={150}/>
+                </ChartCard>
+                <ChartCard title="Jobs by Gender Preference" subtitle="What employers are looking for">
+                  <DonutChart data={d.jobsByGender} size={150}/>
                 </ChartCard>
               </div>
 
