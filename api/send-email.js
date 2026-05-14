@@ -2,6 +2,7 @@
 // Handles all email types for Nagarathar Jobs via Resend
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
+const SITE_URL       = process.env.SITE_URL || 'https://nagaratharjobs.com'
 const FROM_EMAIL     = process.env.FROM_EMAIL || 'Nagarathar Jobs <onboarding@resend.dev>'
 const ADMIN_EMAIL    = process.env.ADMIN_EMAIL || 'slnaiyar@gmail.com'
 
@@ -69,7 +70,7 @@ function buildEmail(type, d) {
             <li>🤝 <strong>Connect with candidates</strong> in our community</li>
           </ul>
           <p>The stronger our community network, the better opportunities we create for each other.</p>
-          <a href="https://nagarathar-jobs.vercel.app/jobs" style="${btnStyle}">Browse Jobs Now →</a>
+          <a href="${SITE_URL}/jobs" style="${btnStyle}">Browse Jobs Now →</a>
         `,
       }
 
@@ -94,7 +95,7 @@ function buildEmail(type, d) {
             ${d.cover_letter}
           </blockquote>` : ''}
           <p style="margin-top:20px">Please log in to review and update the application status.</p>
-          <a href="https://nagarathar-jobs.vercel.app/admin" style="${btnStyle}">Review Application →</a>
+          <a href="${SITE_URL}/admin" style="${btnStyle}">Review Application →</a>
         `,
       }
 
@@ -112,7 +113,7 @@ function buildEmail(type, d) {
             <tr><td style="${tdLabel}">Status</td><td style="${tdValue}"><span style="color:#1A6B3C;font-weight:600;">Application Received</span></td></tr>
           </table>
           <p>You will receive an email when your application status changes. You can also track all your applications from your profile.</p>
-          <a href="https://nagarathar-jobs.vercel.app/profile" style="${btnStyle}">View My Applications →</a>
+          <a href="${SITE_URL}/profile" style="${btnStyle}">View My Applications →</a>
         `,
       }
 
@@ -136,7 +137,29 @@ function buildEmail(type, d) {
             <tr><td style="${tdLabel}">Job Title</td><td style="${tdValue}">${d.job_title}</td></tr>
             <tr><td style="${tdLabel}">New Status</td><td style="${tdValue}"><strong style="color:${statusColor};text-transform:capitalize;">${d.status}</strong></td></tr>
           </table>
-          <a href="https://nagarathar-jobs.vercel.app/profile" style="${btnStyle}">View My Applications →</a>
+          <a href="${SITE_URL}/profile" style="${btnStyle}">View My Applications →</a>
+        `,
+      }
+
+    case 'admin_new_member':
+      return {
+        to:      d.to_email,
+        subject: `New Member Registration: ${d.display_name}`,
+        body: `
+          <h2>New Member Registered 🎉</h2>
+          <p>A new member has joined <strong>Nagarathar Jobs</strong>.</p>
+          <table style="${tableStyle}">
+            <tr><td style="${tdLabel}">Name</td><td style="${tdValue}"><strong>${d.display_name}</strong></td></tr>
+            <tr><td style="${tdLabel}">Email</td><td style="${tdValue}">${d.email}</td></tr>
+            <tr><td style="${tdLabel}">Kovil</td><td style="${tdValue}">${d.kovil || 'Not specified'}</td></tr>
+            <tr><td style="${tdLabel}">City</td><td style="${tdValue}">${d.city || 'Not specified'}</td></tr>
+            <tr><td style="${tdLabel}">Gender</td><td style="${tdValue}">${d.gender || 'Not specified'}</td></tr>
+            <tr><td style="${tdLabel}">Here to</td><td style="${tdValue}">${
+              d.lookingFor === 'job' ? '🔍 Find a Job' :
+              d.lookingFor === 'hire' ? '💼 Hire / Post Jobs' : '🤝 Both'
+            }</td></tr>
+          </table>
+          <a href="${SITE_URL}/admin" style="${btnStyle}">View in Admin Dashboard →</a>
         `,
       }
 
@@ -150,7 +173,7 @@ function buildEmail(type, d) {
           <p><strong>${d.applicant_name}</strong> applied for <strong>${d.job_title}</strong> <strong>${d.days} days ago</strong> and is still waiting for a response.</p>
           <p>As a community platform, we encourage timely responses to keep our members engaged and our community strong.</p>
           <p>Please log in to review the application and update its status — even a rejection is better than silence for our community members.</p>
-          <a href="https://nagarathar-jobs.vercel.app/admin" style="${btnStyle}">Review Application →</a>
+          <a href="${SITE_URL}/admin" style="${btnStyle}">Review Application →</a>
           <p style="margin-top:20px;font-size:13px;color:#8A8070;">If you have already contacted this applicant directly, please update the status in the admin dashboard.</p>
         `,
       }
@@ -169,7 +192,7 @@ function buildEmail(type, d) {
             <li>Browse other open positions in the community</li>
             <li>Connect with employers directly through the Candidates page</li>
           </ul>
-          <a href="https://nagarathar-jobs.vercel.app/jobs" style="${btnStyle}">Browse More Jobs →</a>
+          <a href="${SITE_URL}/jobs" style="${btnStyle}">Browse More Jobs →</a>
         `,
       }
 
@@ -187,7 +210,7 @@ function buildEmail(type, d) {
             <li>👥 New candidate profiles to discover</li>
             <li>🤝 Opportunities to strengthen our Nagarathar network</li>
           </ul>
-          <a href="https://nagarathar-jobs.vercel.app/jobs" style="${btnStyle}">Return to Nagarathar Jobs →</a>
+          <a href="${SITE_URL}/jobs" style="${btnStyle}">Return to Nagarathar Jobs →</a>
         `,
       }
 
@@ -228,7 +251,7 @@ function wrapHtml(subject, body) {
           <td style="background:#FAF7F0;padding:20px 32px;border-top:1px solid #E2D9C5;text-align:center;">
             <p style="margin:0;font-size:12px;color:#8A8070;">
               This email was sent by Nagarathar Jobs · Community Employment Exchange<br>
-              <a href="https://nagarathar-jobs.vercel.app" style="color:#B8860B;">nagarathar-jobs.vercel.app</a>
+              <a href="${SITE_URL}" style="color:#B8860B;">nagaratharjobs.com</a>
             </p>
           </td>
         </tr>
