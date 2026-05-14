@@ -25,14 +25,23 @@ export default function LoginPage() {
   async function handleEmail(e) {
     e.preventDefault()
     setError(''); setLoading(true)
-    try { await loginEmail(email, password); navigate('/jobs') }
+    try {
+      const u = await loginEmail(email, password)
+      // Admin emails redirect to admin dashboard
+      const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || 'slnaiyar@gmail.com').split(',').map(e => e.trim())
+      navigate(adminEmails.includes(u.email) ? '/admin' : '/jobs')
+    }
     catch (err) { setError(friendlyError(err.code)) }
     finally { setLoading(false) }
   }
 
   async function handleGoogle() {
     setError(''); setLoading(true)
-    try { await loginGoogle(); navigate('/jobs') }
+    try {
+      const u = await loginGoogle()
+      const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || 'slnaiyar@gmail.com').split(',').map(e => e.trim())
+      navigate(adminEmails.includes(u.email) ? '/admin' : '/jobs')
+    }
     catch (err) { if (err.code !== 'auth/popup-closed-by-user') setError(err.message) }
     finally { setLoading(false) }
   }
