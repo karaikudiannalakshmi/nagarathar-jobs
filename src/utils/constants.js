@@ -75,6 +75,9 @@ export const FOOD_ACCOMMODATION = [
 // Default skills — admin can add more via Admin Dashboard
 // These are stored in Firestore nj_skills collection
 // This is just the fallback if Firestore not loaded yet
+export const GENDER_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say']
+export const GENDER_PREFERENCE = ['Male', 'Female', 'Any']
+
 export const DEFAULT_SKILLS = [
   // Finance & Accounting
   'Accounting', 'Tally', 'GST', 'TDS', 'Auditing', 'Bookkeeping',
