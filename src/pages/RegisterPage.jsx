@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useLanguage } from '../hooks/useLanguage'
-import { KOVILS } from '../utils/constants'
+import { KOVILS, GENDER_OPTIONS } from '../utils/constants'
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18">
@@ -23,7 +23,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     displayName:'', email:'', password:'', confirm:'',
-    kovil:'', pirivu:'', phone:'', city:'', lookingFor:'job',
+    kovil:'', pirivu:'', phone:'', city:'', lookingFor:'job', gender:'',
   })
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -48,11 +48,16 @@ export default function RegisterPage() {
     try {
       await registerEmail(form.email, form.password, form.displayName, {
         kovil: form.kovil, pirivu: form.pirivu,
-        phone: form.phone, city: form.city, lookingFor: form.lookingFor,
+        phone: form.phone, city: form.city,
+        lookingFor: form.lookingFor, gender: form.gender,
       })
       navigate('/jobs')
     } catch (err) {
-      setError(err.message); setStep(1)
+      console.error('Registration error:', err)
+      const msg = friendlyError(err.code) || err.message || 'Registration failed. Please try again.'
+      setError(msg)
+      // Only go back to step 1 for auth errors, not Firestore errors
+      if (err.code && err.code.startsWith('auth/')) setStep(1)
     } finally { setLoading(false) }
   }
 
@@ -137,6 +142,13 @@ export default function RegisterPage() {
                 <label>{t('register','cityLabel')}</label>
                 <input className="form-control" value={form.city} onChange={set('city')} placeholder="Chennai, Karaikudi…"/>
               </div>
+            </div>
+            <div className="form-group">
+              <label>Gender</label>
+              <select className="form-control" value={form.gender} onChange={set('gender')}>
+                <option value="">Select Gender</option>
+                {GENDER_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
             </div>
             <div className="form-group">
               <label>{t('register','lookingFor')}</label>
