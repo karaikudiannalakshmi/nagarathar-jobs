@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { doc, updateDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
-import { KOVILS, INDUSTRIES, DEFAULT_SKILLS } from '../utils/constants'
+import { KOVILS, INDUSTRIES, DEFAULT_SKILLS, GENDER_OPTIONS, EDUCATION_LEVELS, SALARY_RANGES } from '../utils/constants'
 
 export default function ProfilePage() {
   const { user, profile } = useAuth()
@@ -23,7 +23,13 @@ export default function ProfilePage() {
     skills:       profile?.skills       || [],
     resumeText:   profile?.resumeText   || '',
     linkedinUrl:  profile?.linkedinUrl  || '',
-    industry:     profile?.industry     || '',
+    industry:             profile?.industry             || '',
+    gender:               profile?.gender               || '',
+    currentQualification: profile?.currentQualification  || '',
+    workExperience:       profile?.workExperience         || '',
+    currentSalary:        profile?.currentSalary          || '',
+    expectedSalary:       profile?.expectedSalary         || '',
+    preferredLocation:    profile?.preferredLocation       || '',
   })
 
   useEffect(() => {
@@ -114,6 +120,13 @@ export default function ProfilePage() {
                 </select>
               </div>
               <div className="form-group">
+                <label>Gender</label>
+                <select className="form-control" value={form.gender} onChange={set('gender')}>
+                  <option value="">Select Gender</option>
+                  {GENDER_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
                 <label>LinkedIn / Website</label>
                 <input className="form-control" value={form.linkedinUrl} onChange={set('linkedinUrl')} placeholder="https://…" />
               </div>
@@ -132,6 +145,57 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+
+          {/* Candidate professional details */}
+          {(profile?.lookingFor === 'job' || profile?.lookingFor === 'both') && (
+            <div className="card" style={{ marginBottom: 20 }}>
+              <div className="card-body">
+                <h2 style={{ fontSize: '1.3rem', marginBottom: 20 }}>Professional Details</h2>
+                <div className="form-group">
+                  <label>Current Qualification</label>
+                  <select className="form-control" value={form.currentQualification} onChange={set('currentQualification')}>
+                    <option value="">Select Qualification</option>
+                    {EDUCATION_LEVELS.map(e => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                </div>
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label>Work Experience</label>
+                    <select className="form-control" value={form.workExperience} onChange={set('workExperience')}>
+                      <option value="">Select Experience</option>
+                      <option value="Fresher">Fresher / No experience</option>
+                      <option value="Less than 1 year">Less than 1 year</option>
+                      <option value="1-2 years">1–2 years</option>
+                      <option value="2-5 years">2–5 years</option>
+                      <option value="5-10 years">5–10 years</option>
+                      <option value="10-15 years">10–15 years</option>
+                      <option value="15+ years">15+ years</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Preferred Job Location</label>
+                    <input className="form-control" value={form.preferredLocation} onChange={set('preferredLocation')} placeholder="Chennai, Remote, Any…" />
+                  </div>
+                </div>
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label>Current Salary</label>
+                    <select className="form-control" value={form.currentSalary} onChange={set('currentSalary')}>
+                      <option value="">Select Range</option>
+                      {SALARY_RANGES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Expected Salary</label>
+                    <select className="form-control" value={form.expectedSalary} onChange={set('expectedSalary')}>
+                      <option value="">Select Range</option>
+                      {SALARY_RANGES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="card" style={{ marginBottom: 20 }}>
             <div className="card-body">
