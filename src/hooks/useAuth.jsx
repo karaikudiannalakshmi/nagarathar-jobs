@@ -11,7 +11,7 @@ import {
 } from 'firebase/auth'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '../firebase'
-import { sendWelcomeEmail } from '../utils/emailjs'
+import { sendWelcomeEmail, sendAdminNewMemberAlert } from '../utils/emailjs'
 import { logLogin } from '../utils/activityLogger'
 
 const AuthContext = createContext(null)
@@ -59,8 +59,16 @@ export function AuthProvider({ children }) {
 
   // ── Email + Password register ─────────────────────────────────────────────
   async function registerEmail(email, password, displayName, extra = {}) {
+    // Step 1: Create Firebase Auth account
     const cred = await createUserWithEmailAndPassword(auth, email, password)
-    await updateProfile(cred.user, { displayName })
+    
+    try {
+      await updateProfile(cred.user, { displayName })
+    } catch (e) {
+      console.warn('updateProfile failed:', e)
+    }
+
+    // Step 2: Write Firestore profile — retry once if it fails
     const profileData = {
       uid: cred.user.uid,
       email,
@@ -73,10 +81,28 @@ export function AuthProvider({ children }) {
       createdAt: serverTimestamp(),
       ...extra,
     }
-    await setDoc(doc(db, 'nj_users', cred.user.uid), profileData)
+
+    try {
+      await setDoc(doc(db, 'nj_users', cred.user.uid), profileData)
+    } catch (firestoreErr) {
+      console.error('Firestore write failed, retrying...', firestoreErr)
+      // Wait 1 second and retry — auth token may not have propagated yet
+      await new Promise(r => setTimeout(r, 1000))
+      await setDoc(doc(db, 'nj_users', cred.user.uid), profileData)
+    }
+
     setProfile(profileData)
-    // Welcome email
+    // Welcome email (fire and forget)
     sendWelcomeEmail({ to_email: email, display_name: displayName }).catch(() => {})
+    // Notify admin of new registration
+    sendAdminNewMemberAlert({
+      display_name: displayName,
+      email,
+      kovil:      extra.kovil      || '',
+      city:       extra.city       || '',
+      lookingFor: extra.lookingFor || 'job',
+      gender:     extra.gender     || '',
+    }).catch(() => {})
     return cred.user
   }
 
@@ -106,6 +132,12 @@ export function AuthProvider({ children }) {
       sendWelcomeEmail({
         to_email:     cred.user.email,
         display_name: cred.user.displayName || 'Nagarathar Member',
+      }).catch(() => {})
+      // Notify admin of new Google registration
+      sendAdminNewMemberAlert({
+        display_name: cred.user.displayName || 'Nagarathar Member',
+        email:        cred.user.email,
+        kovil: '', city: '', lookingFor: 'job', gender: '',
       }).catch(() => {})
     } else {
       setProfile(snap.data())
