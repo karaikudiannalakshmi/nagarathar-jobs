@@ -133,6 +133,10 @@ export default function JobDetailPage() {
                 {job.education && <span className="badge badge-blue">🎓 {job.education}</span>}
                 {job.foodAccommodation && job.foodAccommodation !== 'Not Provided' &&
                   <span className="badge badge-green">🍽 {job.foodAccommodation}</span>}
+                {job.genderPreference && job.genderPreference !== 'Any' &&
+                  <span className="badge badge-blue">
+                    {job.genderPreference === 'Male' ? '👨 Male preferred' : '👩 Female preferred'}
+                  </span>}
                 {job.applicantCount > 0 &&
                   <span className="badge badge-muted">👥 {job.applicantCount} applicant{job.applicantCount !== 1 ? 's' : ''}</span>}
               </div>
@@ -154,7 +158,10 @@ export default function JobDetailPage() {
           <div className="section-divider" />
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             {isOwner ? (
-              <span className="badge badge-blue" style={{ padding: '8px 16px' }}>Your Posting</span>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <span className="badge badge-blue" style={{ padding: '8px 16px' }}>Your Posting</span>
+                <Link to={`/jobs/${id}/edit`} className="btn btn-outline btn-sm">✏️ Edit</Link>
+              </div>
             ) : applied ? (
               <button className="btn btn-ghost" disabled>✓ Already Applied</button>
             ) : (
@@ -209,6 +216,7 @@ export default function JobDetailPage() {
               {job.foodAccommodation && <Fact label="Food & Stay" value={job.foodAccommodation} />}
               {(job.salary || job.salaryType === 'negotiable') &&
                 <Fact label="Salary" value={job.salaryType === 'negotiable' ? 'Negotiable' : job.salary} />}
+              {job.genderPreference && <Fact label="Gender Preference" value={job.genderPreference} />}
             </div>
           </div>
         </div>
