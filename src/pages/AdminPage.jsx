@@ -6,7 +6,8 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
-import { sendStatusUpdate } from '../utils/emailjs'
+import { Link } from 'react-router-dom'
+import { sendStatusUpdate, sendEmployerNotification } from '../utils/emailjs'
 import { logStatusChange } from '../utils/activityLogger'
 import { runFollowUpChecks } from '../utils/followUpScheduler'
 import { DEFAULT_SKILLS } from '../utils/constants'
@@ -311,27 +312,41 @@ export default function AdminPage() {
 
   async function loadJobs() {
     setLoading(true)
-    const snap = await getDocs(collection(db, 'nj_jobs'))
-    const jobsData = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    jobsData.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
-    setJobs(jobsData)
+    try {
+      const snap = await getDocs(collection(db, 'nj_jobs'))
+      const jobsData = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      jobsData.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
+      setJobs(jobsData)
+    } catch(err) {
+      console.error('loadJobs error:', err)
+      showToast('Error loading jobs: ' + err.message)
+    }
     setLoading(false)
   }
   async function loadApps() {
     setLoading(true)
-    const snap = await getDocs(collection(db, 'nj_applications'))
-    const appsData = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    // Sort client-side to avoid index requirement
-    appsData.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
-    setApps(appsData)
+    try {
+      const snap = await getDocs(collection(db, 'nj_applications'))
+      const appsData = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      appsData.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
+      setApps(appsData)
+    } catch(err) {
+      console.error('loadApps error:', err)
+      showToast('Error loading applications: ' + err.message)
+    }
     setLoading(false)
   }
   async function loadUsers() {
     setLoading(true)
-    const snap = await getDocs(collection(db, 'nj_users'))
-    const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    usersData.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
-    setUsers(usersData)
+    try {
+      const snap = await getDocs(collection(db, 'nj_users'))
+      const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      usersData.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
+      setUsers(usersData)
+    } catch(err) {
+      console.error('loadUsers error:', err)
+      showToast('Error loading members: ' + err.message)
+    }
     setLoading(false)
   }
   async function loadSkills() {
@@ -354,6 +369,143 @@ export default function AdminPage() {
     await updateDoc(doc(db, 'nj_jobs', job.id), { status: s })
     setJobs(j => j.map(x => x.id === job.id ? { ...x, status: s } : x))
     showToast(`Job ${s}`)
+  }
+
+  // ── BULK: Notify all candidates about all active jobs (one-time) ────────────
+  async function notifyAllCandidatesAboutAllJobs() {
+    if (!confirm(`This will send a job digest email to all candidates about all active jobs. Continue?`)) return
+    setLoading(true)
+    try {
+      const jobsSnap  = await getDocs(collection(db, 'nj_jobs'))
+      const usersSnap = await getDocs(collection(db, 'nj_users'))
+      const activeJobs  = jobsSnap.docs.map(d=>({id:d.id,...d.data()})).filter(j=>j.status==='active')
+      const candidates  = usersSnap.docs.map(d=>({id:d.id,...d.data()}))
+        .filter(u=>(u.lookingFor==='job'||u.lookingFor==='both')&&u.email)
+
+      let sentToCandidates = 0
+      let sentToEmployers  = 0
+
+      // ── 1. Email each candidate: here are jobs matching your profile ────────
+      for (const candidate of candidates) {
+        const matchingJobs = activeJobs.filter(job => {
+          if (!job.industry && !(job.requiredSkills?.length)) return true
+          const industryMatch = candidate.industry && job.industry && candidate.industry === job.industry
+          const skillsMatch   = (candidate.skills||[]).some(s=>(job.requiredSkills||[]).map(r=>r.toLowerCase()).includes(s.toLowerCase()))
+          return industryMatch || skillsMatch
+        })
+        const jobsToShow = matchingJobs.length > 0 ? matchingJobs : activeJobs
+        const jobsList = jobsToShow.map(j =>
+          `<tr><td style="padding:8px 12px;border-bottom:1px solid #F0E0C8;">
+            <strong><a href="https://nagaratharjobs.com/jobs/${j.id}" style="color:#B8860B;text-decoration:none;">${j.title}</a></strong><br/>
+            <span style="font-size:13px;color:#8A7060;">${j.company} · ${j.location||j.locationType||'Any Location'} · ${j.jobType||'Full-Time'}</span>
+          </td></tr>`
+        ).join('')
+        try {
+          await fetch('/api/send-email', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ type: 'job_digest', data: {
+              to_email:       candidate.email,
+              candidate_name: candidate.displayName || 'Nagarathar Member',
+              job_count:      jobsToShow.length,
+              jobs_list:      jobsList,
+              jobs_url:       'https://nagaratharjobs.com/jobs',
+            }})
+          })
+          sentToCandidates++
+        } catch(e) { console.warn('candidate email failed:', candidate.email) }
+      }
+
+      // ── 2. Email each employer: here are candidates matching your job ───────
+      // Group candidates by job they match
+      const employers = usersSnap.docs.map(d=>({id:d.id,...d.data()}))
+        .filter(u=>(u.lookingFor==='hire'||u.lookingFor==='both') && u.email)
+
+      for (const job of activeJobs) {
+        if (!job.postedByEmail) continue
+        const matchingCandidates = candidates.filter(candidate => {
+          if (!job.industry && !(job.requiredSkills?.length)) return true
+          const industryMatch = candidate.industry && job.industry && candidate.industry === job.industry
+          const skillsMatch   = (candidate.skills||[]).some(s=>(job.requiredSkills||[]).map(r=>r.toLowerCase()).includes(s.toLowerCase()))
+          return industryMatch || skillsMatch
+        })
+        if (matchingCandidates.length === 0) continue
+
+        const candidatesList = matchingCandidates.slice(0,10).map(c =>
+          `<tr><td style="padding:8px 12px;border-bottom:1px solid #F0E0C8;">
+            <strong>${c.displayName||'Nagarathar Member'}</strong>
+            ${c.kovil ? `<span style="color:#B8860B;font-size:12px;margin-left:6px;">${c.kovil} Kovil</span>` : ''}
+            <br/>
+            <span style="font-size:13px;color:#8A7060;">
+              ${c.city||''}${c.city&&c.industry?' · ':''}${c.industry||''}${c.workExperience?' · '+c.workExperience:''}
+            </span><br/>
+            <a href="mailto:${c.email}" style="font-size:12px;color:#B8860B;">${c.email}</a>
+          </td></tr>`
+        ).join('')
+
+        try {
+          await fetch('/api/send-email', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ type: 'candidate_digest', data: {
+              to_email:         job.postedByEmail,
+              employer_name:    job.postedByName || 'Employer',
+              job_title:        job.title,
+              candidate_count:  matchingCandidates.length,
+              candidates_list:  candidatesList,
+              candidates_url:   'https://nagaratharjobs.com/candidates',
+              job_url:          `https://nagaratharjobs.com/jobs/${job.id}`,
+            }})
+          })
+          sentToEmployers++
+        } catch(e) { console.warn('employer email failed:', job.postedByEmail) }
+      }
+
+      showToast(`✉️ Sent to ${sentToCandidates} candidates & ${sentToEmployers} employers!`)
+    } catch(err) { showToast('Error: ' + err.message) }
+    finally { setLoading(false) }
+  }
+
+  // ── Notify matching candidates for a job ──────────────────────────────────
+  async function notifyMatchingCandidates(job) {
+    try {
+      // Get all candidates whose industry matches this job
+      const snap = await getDocs(collection(db, 'nj_users'))
+      const candidates = snap.docs.map(d => d.data()).filter(u =>
+        (u.lookingFor === 'job' || u.lookingFor === 'both') &&
+        u.email &&
+        (
+          !job.industry || // if no industry specified, notify all seekers
+          u.industry === job.industry ||
+          (u.skills || []).some(s => (job.requiredSkills || []).includes(s))
+        )
+      )
+      if (candidates.length === 0) { showToast('No matching candidates found'); return }
+      
+      let sent = 0
+      for (const c of candidates) {
+        try {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'job_alert',
+              data: {
+                to_email:       c.email,
+                candidate_name: c.displayName || 'Nagarathar Member',
+                job_title:      job.title,
+                company:        job.company,
+                location:       job.location || job.locationType || 'Any Location',
+                salary:         job.salaryType === 'negotiable' ? 'Negotiable' : (job.salary || 'Not specified'),
+                job_url:        `https://nagaratharjobs.com/jobs/${job.id}`,
+              }
+            })
+          })
+          sent++
+        } catch(_) {}
+      }
+      showToast(`✉️ Notified ${sent} matching candidate${sent !== 1 ? 's' : ''}`)
+    } catch(err) {
+      showToast('Error: ' + err.message)
+    }
   }
   async function deleteJob(id) {
     if (!confirm('Delete this job?')) return
@@ -451,6 +603,21 @@ export default function AdminPage() {
                 <StatCard icon="🔍" value={d.seekers}            label="Job Seekers"            color="var(--blue)"  sub={`${d.newThisWeek} joined this week`}/>
                 <StatCard icon="🏢" value={d.employers}           label="Employers"              color="var(--gold)"  sub="Posted jobs"/>
                 <StatCard icon="✨" value={d.matchedCandidates}   label="Matching Candidates"    color="var(--green)" sub="Industry match with active jobs"/>
+              </div>
+
+              {/* Bulk notification banner */}
+              <div className="card" style={{ marginBottom:20, background:'linear-gradient(135deg,#FAF7F0,#F5E9C8)', border:'1px solid #D4A017' }}>
+                <div className="card-body" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12 }}>
+                  <div>
+                    <div style={{ fontWeight:700, fontSize:'1.05rem', color:'var(--charcoal)' }}>📣 Connect Candidates & Employers</div>
+                    <div style={{ fontSize:'13px', color:'var(--muted)', marginTop:4 }}>
+                      Email {d?.seekers || ''} candidates about active jobs · Email employers about matching candidate profiles
+                    </div>
+                  </div>
+                  <button className="btn btn-primary" onClick={notifyAllCandidatesAboutAllJobs} disabled={loading}>
+                    📧 Send Job Digest Now
+                  </button>
+                </div>
               </div>
 
               {/* Application funnel */}
@@ -598,6 +765,8 @@ export default function AdminPage() {
                   <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                     <span className={`badge badge-${job.status==='active'?'green':'muted'}`}>{job.status}</span>
                     <button className="btn btn-ghost btn-sm" onClick={() => toggleJobStatus(job)}>{job.status==='active'?'Close':'Reopen'}</button>
+                    <Link to={`/jobs/${job.id}/edit`} className="btn btn-ghost btn-sm">✏️ Edit</Link>
+                    {job.status==='active' && <button className="btn btn-outline btn-sm" style={{ color: 'var(--green)', borderColor: 'var(--green)' }} onClick={() => notifyMatchingCandidates(job)}>📧 Notify Matches</button>}
                     <button className="btn btn-danger btn-sm" onClick={() => deleteJob(job.id)}>Delete</button>
                   </div>
                 </div>
