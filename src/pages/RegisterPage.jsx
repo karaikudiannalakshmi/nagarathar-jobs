@@ -71,7 +71,7 @@ export default function RegisterPage() {
   // ── Google login ────────────────────────────────────────────────────────
   async function handleGoogle() {
     setError(''); setLoading(true)
-    try { await loginGoogle(); navigate('/jobs') }
+    try { await loginGoogle(); navigate('/dashboard') }
     catch (err) { if (err.code !== 'auth/popup-closed-by-user') setError(err.message) }
     finally { setLoading(false) }
   }
@@ -124,7 +124,7 @@ export default function RegisterPage() {
         designation:       form.designation,
       }
       await registerEmail(form.email, form.password, form.displayName, extra)
-      navigate('/jobs')
+      navigate('/dashboard')
     } catch (err) {
       console.error('Registration error:', err)
       const msg = friendlyError(err.code) || err.message || 'Registration failed. Please try again.'
