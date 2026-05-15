@@ -10,7 +10,8 @@ import ProfilePage    from './pages/ProfilePage'
 import CandidatesPage from './pages/CandidatesPage'
 import AdminPage      from './pages/AdminPage'
 import ReportsPage    from './pages/ReportsPage'
-import EditJobPage    from './pages/EditJobPage'
+import EditJobPage     from './pages/EditJobPage'
+import DashboardPage  from './pages/DashboardPage'
 import LoginPage      from './pages/LoginPage'
 import RegisterPage   from './pages/RegisterPage'
 
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="login"    element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
 
+        <Route path="dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
         <Route path="jobs"       element={<PrivateRoute><JobsPage /></PrivateRoute>} />
         <Route path="jobs/:id"   element={<PrivateRoute><JobDetailPage /></PrivateRoute>} />
         <Route path="jobs/:id/edit" element={<PrivateRoute><EditJobPage /></PrivateRoute>} />
