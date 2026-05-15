@@ -12,6 +12,7 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { sendWelcomeEmail, sendAdminNewMemberAlert } from '../utils/emailjs'
+import { notifyMatchingEmployersForCandidate } from '../utils/matchEngine'
 import { logLogin } from '../utils/activityLogger'
 
 const AuthContext = createContext(null)
@@ -94,6 +95,21 @@ export function AuthProvider({ children }) {
     setProfile(profileData)
     // Welcome email (fire and forget)
     sendWelcomeEmail({ to_email: email, display_name: displayName }).catch(() => {})
+
+    // If candidate — notify matching employers in background
+    if ((extra.lookingFor === 'job' || extra.lookingFor === 'both')) {
+      notifyMatchingEmployersForCandidate({
+        uid: cred.user.uid, email, displayName,
+        industry:    extra.industry    || '',
+        skills:      extra.skills      || [],
+        kovil:       extra.kovil       || '',
+        city:        extra.city        || '',
+        workExperience:       extra.workExperience       || '',
+        currentQualification: extra.currentQualification || '',
+        lookingFor:  extra.lookingFor,
+      }).then(r => console.log(`[match] Notified ${r.sent} employers`)).catch(() => {})
+    }
+
     // Notify admin of new registration
     sendAdminNewMemberAlert({
       display_name: displayName,
@@ -133,6 +149,13 @@ export function AuthProvider({ children }) {
         to_email:     cred.user.email,
         display_name: cred.user.displayName || 'Nagarathar Member',
       }).catch(() => {})
+      // Notify matching employers for new Google candidate
+      notifyMatchingEmployersForCandidate({
+        uid: cred.user.uid, email: cred.user.email,
+        displayName: cred.user.displayName || '',
+        industry: '', skills: [], kovil: '', city: '',
+        lookingFor: 'job',
+      }).then(r => console.log(`[match] Notified ${r.sent} employers`)).catch(() => {})
       // Notify admin of new Google registration
       sendAdminNewMemberAlert({
         display_name: cred.user.displayName || 'Nagarathar Member',
