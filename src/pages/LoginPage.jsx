@@ -29,7 +29,7 @@ export default function LoginPage() {
       const u = await loginEmail(email, password)
       // Admin emails redirect to admin dashboard
       const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || 'slnaiyar@gmail.com').split(',').map(e => e.trim())
-      navigate(adminEmails.includes(u.email) ? '/admin' : '/jobs')
+      navigate(adminEmails.includes(u.email) ? '/admin' : '/dashboard')
     }
     catch (err) { setError(friendlyError(err.code)) }
     finally { setLoading(false) }
@@ -40,7 +40,7 @@ export default function LoginPage() {
     try {
       const u = await loginGoogle()
       const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || 'slnaiyar@gmail.com').split(',').map(e => e.trim())
-      navigate(adminEmails.includes(u.email) ? '/admin' : '/jobs')
+      navigate(adminEmails.includes(u.email) ? '/admin' : '/dashboard')
     }
     catch (err) { if (err.code !== 'auth/popup-closed-by-user') setError(err.message) }
     finally { setLoading(false) }
