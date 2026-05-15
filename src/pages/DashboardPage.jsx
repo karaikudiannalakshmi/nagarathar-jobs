@@ -116,7 +116,7 @@ export default function DashboardPage() {
           type: 'tip',
           icon: '💡',
           title: 'Add your industry & skills',
-          desc: 'Without these, you won't appear in employer searches or get matched to jobs.',
+          desc: "Without these, you won't appear in employer searches or get matched to jobs.",
           action: { label: 'Add Now', to: '/profile' },
         })
       }
