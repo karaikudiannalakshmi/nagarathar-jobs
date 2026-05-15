@@ -449,7 +449,7 @@ export default function ReportsPage() {
             {followUps.map(f => (
               <div key={f.id} style={S.logRow}>
                 <span style={followUpBadge(f.key)}>{followUpLabel(f.key)}</span>
-                <span style={{ flex: 1, fontSize: '14px', color: 'var(--slate)', fontFamily: 'monospace', fontSize: '12px' }}>{f.key}</span>
+                <span style={{ flex: 1, fontSize: '12px', color: 'var(--slate)', fontFamily: 'monospace' }}>{f.key}</span>
                 <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{fmtDate(f.sentAt?.toDate())}</span>
               </div>
             ))}
