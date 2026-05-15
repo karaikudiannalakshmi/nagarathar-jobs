@@ -24,6 +24,7 @@ export default function Layout() {
 
           {user && (
             <div style={S.navLinks} className="nav-links-desktop">
+              <NavLink to="/dashboard"  active={active('/dashboard')}>🏠 Dashboard</NavLink>
               <NavLink to="/jobs"       active={active('/jobs')}>{t('nav','browseJobs')}</NavLink>
               <NavLink to="/candidates" active={active('/candidates')}>{t('nav','candidates')}</NavLink>
               <NavLink to="/post-job"   active={active('/post-job')}>{t('nav','postJob')}</NavLink>
@@ -71,6 +72,7 @@ export default function Layout() {
         {menuOpen && user && (
           <div style={S.mobileMenu}>
             {[
+              ['/dashboard',  '🏠 Dashboard'],
               ['/jobs',       t('nav','browseJobs')],
               ['/candidates', t('nav','candidates')],
               ['/post-job',   t('nav','postJob')],
