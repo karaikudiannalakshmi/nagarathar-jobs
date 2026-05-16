@@ -96,9 +96,8 @@ const EMPLOYER_STEPS = [
 function WelcomeVisual() {
   return (
     <div style={V.box}>
-      <div style={{ fontSize: '5rem', marginBottom: 12 }}>𓃵</div>
-      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.6rem', color: '#B8860B', fontWeight: 700 }}>Nagarathar Jobs</div>
-      <div style={{ fontSize: '13px', color: '#8A7060', marginTop: 6 }}>Community Employment Exchange</div>
+      <img src="/logo.png" alt="Nagarathar Jobs" style={{ height: 80, width: 'auto', marginBottom: 12, filter: 'drop-shadow(0 4px 12px rgba(184,134,11,0.3))' }} />
+      <div style={{ fontSize: '13px', color: '#8A7060', marginTop: 4 }}>Community Employment Exchange</div>
       <div style={{ display: 'flex', gap: 20, marginTop: 20, justifyContent: 'center' }}>
         {[['60+', 'Members'], ['7', 'Active Jobs'], ['74', 'Villages']].map(([n, l]) => (
           <div key={l} style={{ textAlign: 'center' }}>
