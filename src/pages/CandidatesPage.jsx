@@ -164,8 +164,16 @@ export default function CandidatesPage() {
                 </a>
               )}
             </div>
-            <div className="modal-footer">
-              <a href={`mailto:${selected.email}`} className="btn btn-primary">✉️ Contact</a>
+            <div className="modal-footer" style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+              <div style={{ flex:1, padding:'10px 14px', background:'var(--ivory)', borderRadius:'var(--radius)', border:'1px solid var(--border)', fontSize:'13px' }}>
+                <div style={{ fontWeight:600, marginBottom:4, color:'var(--charcoal)' }}>Contact Details</div>
+                <div style={{ color:'var(--slate)' }}>📧 {selected.email}</div>
+                {selected.phone && <div style={{ color:'var(--slate)', marginTop:4 }}>📞 {selected.phone}</div>}
+              </div>
+              <button className="btn btn-primary" onClick={() => {
+                navigator.clipboard?.writeText(selected.email).catch(()=>{})
+                alert(`Contact: ${selected.displayName}\nEmail: ${selected.email}${selected.phone ? '\nPhone: ' + selected.phone : ''}`)
+              }}>📋 Copy Contact</button>
             </div>
           </div>
         </div>
