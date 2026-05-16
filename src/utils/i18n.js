@@ -7,7 +7,7 @@ export const translations = {
   // ── Navigation ──────────────────────────────────────────────────────────
   nav: {
     browseJobs:   { en: 'Browse Jobs',        ta: 'வேலைகள் பார்க்க' },
-    candidates:   { en: 'Candidates',         ta: 'வேட்பாளர்கள்' },
+    candidates:   { en: 'Candidates',         ta: 'வேலை தேடுபவர்கள்' },
     postJob:      { en: 'Post a Job',         ta: 'வேலை பதிவிட' },
     admin:        { en: 'Admin',              ta: 'நிர்வாகம்' },
     reports:      { en: 'Reports',            ta: 'அறிக்கைகள்' },
