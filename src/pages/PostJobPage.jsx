@@ -1,12 +1,13 @@
 // src/pages/PostJobPage.jsx
 import { useState, useEffect } from 'react'
+import { notifyMatchingCandidatesForJob } from '../utils/matchEngine'
 import { useNavigate } from 'react-router-dom'
 import { collection, addDoc, serverTimestamp, getDocs, orderBy, query } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
 import {
   INDUSTRIES, JOB_TYPES, EXPERIENCE_LEVELS, EDUCATION_LEVELS,
-  SALARY_RANGES, LOCATION_TYPES, FOOD_ACCOMMODATION, DEFAULT_SKILLS,
+  SALARY_RANGES, LOCATION_TYPES, FOOD_ACCOMMODATION, DEFAULT_SKILLS, GENDER_PREFERENCE,
 } from '../utils/constants'
 
 export default function PostJobPage() {
@@ -33,6 +34,7 @@ export default function PostJobPage() {
     contactEmail: user?.email || '', contactPhone: profile?.phone || '',
     // Skills required
     requiredSkills: [],
+    genderPreference: 'Any',
   })
 
   useEffect(() => { loadSkills() }, [])
@@ -72,6 +74,10 @@ export default function PostJobPage() {
         applicantCount: 0,
         createdAt:     serverTimestamp(),
       })
+      // Fire match notifications in background — don't block navigation
+      notifyMatchingCandidatesForJob({ id: ref.id, ...form, postedBy: user.uid, postedByName: profile?.displayName || '', postedByEmail: user.email })
+        .then(r => console.log(`[match] Notified ${r.sent} candidates`))
+        .catch(() => {})
       navigate(`/jobs/${ref.id}`)
     } catch (err) {
       setError(err.message)
@@ -204,6 +210,24 @@ export default function PostJobPage() {
                     onChange={set('foodAccommodation')}
                     style={{ marginRight: 6 }} />
                   {fa}
+                </label>
+              ))}
+            </div>
+          </div>
+        </Section>
+
+        {/* ── 5b. Gender Preference ── */}
+        <Section title="5b. Gender Preference">
+          <div className="form-group">
+            <label>Preferred Candidate Gender</label>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {GENDER_PREFERENCE.map(g => (
+                <label key={g} style={radioStyle(form.genderPreference === g)}>
+                  <input type="radio" name="genderPreference" value={g}
+                    checked={form.genderPreference === g}
+                    onChange={set('genderPreference')}
+                    style={{ marginRight: 6 }} />
+                  {g === 'Any' ? '👥 Any' : g === 'Male' ? '👨 Male' : '👩 Female'}
                 </label>
               ))}
             </div>
