@@ -6,7 +6,7 @@ const SITE_URL       = process.env.SITE_URL || 'https://nagaratharjobs.com'
 const FROM_EMAIL     = process.env.FROM_EMAIL || 'Nagarathar Jobs <onboarding@resend.dev>'
 const ADMIN_EMAIL    = process.env.ADMIN_EMAIL || 'slnaiyar@gmail.com'
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
@@ -142,6 +142,26 @@ function buildEmail(type, d) {
       }
 
     // ── Candidate notified of matching job ──────────────────────────────────
+    case 'job_posted_confirmation':
+      return {
+        to:      d.to_email,
+        subject: `✅ Your job "${d.job_title}" is now live on Nagarathar Jobs`,
+        body: `
+          <h2>Your Job is Live! 🎉</h2>
+          <p>Dear <strong>${d.employer_name}</strong>,</p>
+          <p>Your job posting has been successfully published on <strong>Nagarathar Jobs</strong>.</p>
+          <table style="${tableStyle}">
+            <tr><td style="${tdLabel}">Job Title</td><td style="${tdValue}"><strong>${d.job_title}</strong></td></tr>
+            <tr><td style="${tdLabel}">Company</td><td style="${tdValue}">${d.company}</td></tr>
+            <tr><td style="${tdLabel}">Status</td><td style="${tdValue}"><span style="color:#1A6B3C;font-weight:600;">✅ Active</span></td></tr>
+          </table>
+          <p>Matching candidates in our community have been notified about this opportunity.</p>
+          <p>You can manage your posting anytime from your dashboard.</p>
+          <a href="${d.job_url}" style="${btnStyle}">View Job Posting →</a>
+          <a href="${SITE_URL}/candidates" style="display:inline-block;margin-left:12px;padding:12px 24px;border:2px solid #B8860B;color:#B8860B;border-radius:6px;text-decoration:none;font-weight:600;">Browse Candidates →</a>
+        `,
+      }
+
     case 'candidate_digest':
       return {
         to:      d.to_email,
