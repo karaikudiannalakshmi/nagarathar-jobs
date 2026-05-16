@@ -62,6 +62,7 @@ export default function DashboardPage() {
   const { user, profile } = useAuth()
   const [showTour,           setShowTour]           = useState(false)
   const [matchingJobs,       setMatchingJobs]       = useState([])
+  const [selectedCandidate,  setSelectedCandidate]  = useState(null)
   const [matchingCandidates, setMatchingCandidates] = useState([])
   const [myJobs,             setMyJobs]             = useState([])
   const [myApps,             setMyApps]             = useState([])
@@ -450,9 +451,12 @@ export default function DashboardPage() {
                            {c.skills.slice(0, 3).map(s => <span key={s} className="tag" style={{ fontSize: '11px' }}>{s}</span>)}
                          </div>
                        )}
-                       <a href={`mailto:${c.email}`} className="btn btn-primary btn-sm" style={{ fontSize: '12px', display: 'inline-block', padding: '5px 14px' }}>
-                         ✉️ Contact
-                       </a>
+                       <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                         <button className="btn btn-primary btn-sm" style={{ fontSize: '12px', padding: '5px 12px' }}
+                           onClick={() => setSelectedCandidate(c)}>
+                           👤 View Profile
+                         </button>
+                       </div>
                      </div>
                    </div>
                  ))}
@@ -461,6 +465,98 @@ export default function DashboardPage() {
           </div>
         </>
       )}
+      {/* Candidate Profile Modal */}
+      {selectedCandidate && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(44,24,16,0.6)', zIndex:200,
+          display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
+          onClick={() => setSelectedCandidate(null)}>
+          <div style={{ background:'var(--white)', borderRadius:16, maxWidth:520, width:'100%',
+            maxHeight:'90vh', overflowY:'auto', boxShadow:'0 24px 60px rgba(0,0,0,0.3)' }}
+            onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ padding:'20px 24px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+                <div style={{ width:48, height:48, borderRadius:'50%', background:'linear-gradient(135deg,var(--gold-pale),var(--gold))', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:'1.3rem' }}>
+                  {selectedCandidate.displayName?.[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'1.3rem', fontWeight:700 }}>{selectedCandidate.displayName}</div>
+                  {selectedCandidate.kovil && <div style={{ fontSize:'13px', color:'var(--gold)' }}>{selectedCandidate.kovil} Kovil</div>}
+                </div>
+              </div>
+              <button onClick={() => setSelectedCandidate(null)} style={{ background:'none', border:'none', fontSize:'1.5rem', cursor:'pointer', color:'var(--muted)' }}>✕</button>
+            </div>
+            {/* Body */}
+            <div style={{ padding:'20px 24px' }}>
+              {/* Tags */}
+              <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:16 }}>
+                {selectedCandidate.city && <span className="tag">📍 {selectedCandidate.city}</span>}
+                {selectedCandidate.gender && <span className="badge badge-blue">{selectedCandidate.gender}</span>}
+                {selectedCandidate.industry && <span className="badge badge-gold">{selectedCandidate.industry}</span>}
+                {selectedCandidate.workExperience && <span className="badge badge-muted">⏱ {selectedCandidate.workExperience}</span>}
+              </div>
+              {/* Qualification & Salary */}
+              {(selectedCandidate.currentQualification || selectedCandidate.expectedSalary) && (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
+                  {selectedCandidate.currentQualification && (
+                    <div style={{ background:'var(--ivory)', padding:'10px 14px', borderRadius:'var(--radius)', border:'1px solid var(--border)' }}>
+                      <div style={{ fontSize:'11px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>Qualification</div>
+                      <div style={{ fontSize:'13px', fontWeight:600 }}>{selectedCandidate.currentQualification}</div>
+                    </div>
+                  )}
+                  {selectedCandidate.expectedSalary && (
+                    <div style={{ background:'#E8F5EE', padding:'10px 14px', borderRadius:'var(--radius)', border:'1px solid #A8D5BC' }}>
+                      <div style={{ fontSize:'11px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>Expected Salary</div>
+                      <div style={{ fontSize:'13px', fontWeight:700, color:'var(--green)' }}>💰 {selectedCandidate.expectedSalary}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Skills */}
+              {selectedCandidate.skills?.length > 0 && (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:'12px', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>Skills</div>
+                  <div className="tag-list">
+                    {selectedCandidate.skills.map(s => <span key={s} className="tag">{s}</span>)}
+                  </div>
+                </div>
+              )}
+              {/* Summary */}
+              {selectedCandidate.resumeText && (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:'12px', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>Professional Summary</div>
+                  <div style={{ background:'var(--ivory)', padding:'12px 14px', borderRadius:'var(--radius)', fontSize:'13px', lineHeight:1.7, color:'var(--slate)' }}>
+                    {selectedCandidate.resumeText}
+                  </div>
+                </div>
+              )}
+              {/* Contact Details — shown directly */}
+              <div style={{ background:'var(--gold-pale)', padding:'14px 16px', borderRadius:'var(--radius)', border:'1px solid var(--gold)' }}>
+                <div style={{ fontSize:'12px', fontWeight:700, color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:10 }}>Contact Details</div>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+                  <span style={{ fontSize:'1.1rem' }}>📧</span>
+                  <span style={{ fontSize:'13px', color:'var(--dark)', fontWeight:500 }}>{selectedCandidate.email}</span>
+                  <button onClick={() => navigator.clipboard?.writeText(selectedCandidate.email)} 
+                    className="btn btn-ghost btn-sm" style={{ marginLeft:'auto', fontSize:'11px', padding:'3px 10px' }}>
+                    Copy
+                  </button>
+                </div>
+                {selectedCandidate.phone && (
+                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <span style={{ fontSize:'1.1rem' }}>📞</span>
+                    <span style={{ fontSize:'13px', color:'var(--dark)', fontWeight:500 }}>{selectedCandidate.phone}</span>
+                    <button onClick={() => navigator.clipboard?.writeText(selectedCandidate.phone)} 
+                      className="btn btn-ghost btn-sm" style={{ marginLeft:'auto', fontSize:'11px', padding:'3px 10px' }}>
+                      Copy
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Onboarding Tour — shown on first login */}
       {showTour && (
         <OnboardingTour
