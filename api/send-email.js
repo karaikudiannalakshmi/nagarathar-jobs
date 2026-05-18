@@ -3,10 +3,10 @@
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SITE_URL       = process.env.SITE_URL || 'https://nagaratharjobs.com'
-const FROM_EMAIL     = process.env.FROM_EMAIL || 'Nagarathar Jobs <admin@nagaratharjobs.com>'
+const FROM_EMAIL     = process.env.FROM_EMAIL || 'Nagarathar Jobs <onboarding@resend.dev>'
 const ADMIN_EMAIL    = process.env.ADMIN_EMAIL || 'slnaiyar@gmail.com'
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
