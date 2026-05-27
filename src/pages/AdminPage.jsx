@@ -1,46 +1,28 @@
 // src/pages/AdminPage.jsx
 import { useState, useEffect } from 'react'
-import {
-  collection, query, orderBy, getDocs, doc, updateDoc,
-  deleteDoc, getCountFromServer, where, addDoc, serverTimestamp,
-} from 'firebase/firestore'
+import { collection, getDocs, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
 import { Link } from 'react-router-dom'
-import { sendStatusUpdate, sendEmployerNotification } from '../utils/emailjs'
-import { logStatusChange } from '../utils/activityLogger'
-import { runFollowUpChecks } from '../utils/followUpScheduler'
 import { DEFAULT_SKILLS } from '../utils/constants'
 
-// ── Mini chart components (no external lib needed) ────────────────────────────
-function BarChart({ data, colorFrom = '#B8860B', colorTo = '#F0C040', height = 180 }) {
+// ── Mini chart components ─────────────────────────────────────────────────
+function BarChart({ data, height = 160 }) {
   if (!data || data.length === 0) return <EmptyChart />
   const max = Math.max(...data.map(d => d.value), 1)
   return (
     <div style={{ width: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height, paddingBottom: 8 }}>
-        {data.map((d, i) => {
-          const pct = (d.value / max) * 100
-          const ratio = i / Math.max(data.length - 1, 1)
-          const r = Math.round(184 + (240 - 184) * ratio)
-          const g = Math.round(134 + (192 - 134) * ratio)
-          const b = Math.round(11 + (64 - 11) * ratio)
-          return (
-            <div key={d.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#5C3A00' }}>{d.value}</div>
-              <div style={{
-                width: '100%', background: `rgb(${r},${g},${b})`,
-                height: `${Math.max(pct, 3)}%`, borderRadius: '4px 4px 0 0',
-                minHeight: 4, transition: 'height 0.6s ease',
-                boxShadow: '0 2px 6px rgba(184,134,11,0.3)',
-              }} title={`${d.label}: ${d.value}`} />
-            </div>
-          )
-        })}
+        {data.map((d, i) => (
+          <div key={d.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#5C3A00' }}>{d.value}</div>
+            <div style={{ width: '100%', background: `hsl(${40 + i * 15}, 70%, 45%)`, height: `${Math.max((d.value / max) * 100, 3)}%`, borderRadius: '4px 4px 0 0', minHeight: 4 }} title={`${d.label}: ${d.value}`} />
+          </div>
+        ))}
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
         {data.map(d => (
-          <div key={d.label} style={{ flex: 1, textAlign: 'center', fontSize: 10, color: 'var(--muted)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={d.label}>
+          <div key={d.label} style={{ flex: 1, textAlign: 'center', fontSize: 10, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={d.label}>
             {d.label.length > 10 ? d.label.slice(0, 9) + '…' : d.label}
           </div>
         ))}
@@ -88,7 +70,7 @@ function DonutChart({ data, size = 160 }) {
   )
 }
 
-function HorizBar({ data, color = '#B8860B' }) {
+function HorizBar({ data }) {
   if (!data || data.length === 0) return <EmptyChart />
   const max = Math.max(...data.map(d => d.value), 1)
   return (
@@ -98,7 +80,7 @@ function HorizBar({ data, color = '#B8860B' }) {
           <span style={{ width: 20, fontSize: 11, color: 'var(--muted)', textAlign: 'right', flexShrink: 0 }}>#{i + 1}</span>
           <span style={{ width: 130, fontSize: 12, color: 'var(--slate)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{d.label}</span>
           <div style={{ flex: 1, height: 16, background: 'var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${(d.value / max) * 100}%`, background: i === 0 ? '#B8860B' : i < 3 ? '#D4A017' : '#E2C97A', borderRadius: 8, transition: 'width 0.6s ease' }} />
+            <div style={{ height: '100%', width: `${(d.value / max) * 100}%`, background: i === 0 ? '#B8860B' : i < 3 ? '#D4A017' : '#E2C97A', borderRadius: 8 }} />
           </div>
           <span style={{ width: 28, fontSize: 12, fontWeight: 700, color: '#5C3A00', textAlign: 'right', flexShrink: 0 }}>{d.value}</span>
         </div>
@@ -109,7 +91,7 @@ function HorizBar({ data, color = '#B8860B' }) {
 
 function StatCard({ icon, value, label, color, sub }) {
   return (
-    <div className="card" style={{ transition: 'none' }}>
+    <div className="card">
       <div className="card-body" style={{ padding: '24px 20px', textAlign: 'center' }}>
         <div style={{ fontSize: '2rem', marginBottom: 6 }}>{icon}</div>
         <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '3rem', fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
@@ -126,10 +108,10 @@ function EmptyChart() {
 
 function ChartCard({ title, subtitle, children }) {
   return (
-    <div className="card" style={{ transition: 'none' }}>
+    <div className="card">
       <div className="card-body">
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.2rem', fontWeight: 600, color: 'var(--charcoal)' }}>{title}</div>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.2rem', fontWeight: 600 }}>{title}</div>
           {subtitle && <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: 2 }}>{subtitle}</div>}
         </div>
         {children}
@@ -138,37 +120,31 @@ function ChartCard({ title, subtitle, children }) {
   )
 }
 
-// ── Main AdminPage ────────────────────────────────────────────────────────────
 const TABS = [
   ['dashboard', '📊 Dashboard'],
   ['jobs',      '💼 Jobs'],
   ['apps',      '📨 Applications'],
   ['users',     '👥 Members'],
-  ['skills',    '🏷 Skills Master'],
+  ['skills',    '🏷 Skills'],
 ]
 
 export default function AdminPage() {
   const { user } = useAuth()
-  const [tab, setTab]       = useState('dashboard')
-  const [dashData, setDash] = useState(null)
-  const [jobs, setJobs]     = useState([])
-  const [apps, setApps]     = useState([])
-  const [users, setUsers]   = useState([])
-  const [skills, setSkills] = useState([])
+  const [tab, setTab]         = useState('dashboard')
+  const [dashData, setDash]   = useState(null)
+  const [jobs, setJobs]       = useState([])
+  const [apps, setApps]       = useState([])
+  const [users, setUsers]     = useState([])
+  const [skills, setSkills]   = useState([])
   const [newSkill, setNewSkill] = useState('')
-  const [skillSuggestions, setSkillSuggestions] = useState([])
+  const [skillSuggestions, setSkillSugg] = useState([])
   const [loading, setLoading] = useState(false)
   const [dashError, setDashError] = useState('')
-  const [toast, setToast]   = useState('')
+  const [toast, setToast]     = useState('')
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [selectedApp,  setSelectedApp]  = useState(null)
 
-  useEffect(() => {
-    loadDashboard()
-    runFollowUpChecks().then(r => {
-      const n = r.pendingApps + r.noResponseApps + r.dormantMembers
-      if (n > 0) showToast(`${n} follow-up email${n > 1 ? 's' : ''} triggered`)
-    }).catch(() => {})
-  }, [])
-
+  useEffect(() => { loadDashboard() }, [])
   useEffect(() => {
     if (tab === 'jobs')   loadJobs()
     if (tab === 'apps')   loadApps()
@@ -178,189 +154,93 @@ export default function AdminPage() {
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 4000) }
 
-  // ── Dashboard data aggregation ──────────────────────────────────────────
   async function loadDashboard() {
-    setLoading(true)
-    setDashError('')
+    setLoading(true); setDashError('')
     try {
-      // Use simple collection reads — no compound queries to avoid index issues
       const [uSnap, jSnap, aSnap] = await Promise.all([
         getDocs(collection(db, 'nj_users')),
         getDocs(collection(db, 'nj_jobs')),
         getDocs(collection(db, 'nj_applications')),
       ])
-
-      const users  = uSnap.docs.map(d => d.data())
-      const jobs   = jSnap.docs.map(d => d.data())
-      const apps   = aSnap.docs.map(d => d.data())
-      const pendingAppsCount = apps.filter(a => a.status === 'pending').length
-
-      // ── Jobs by industry ──
-      const jobsByIndustry = {}
-      jobs.forEach(j => {
-        const k = j.industry || 'Other'
-        jobsByIndustry[k] = (jobsByIndustry[k] || 0) + 1
-      })
-
-      // ── Jobs by type ──
-      const jobsByType = {}
-      jobs.forEach(j => {
-        const k = j.jobType || 'Full-Time'
-        jobsByType[k] = (jobsByType[k] || 0) + 1
-      })
-
-      // ── Jobs by location ──
-      const jobsByLocation = {}
-      jobs.forEach(j => {
-        const k = j.locationType === 'Any Location / Remote' ? 'Remote/Any' : (j.location || 'Unknown')
-        jobsByLocation[k] = (jobsByLocation[k] || 0) + 1
-      })
-
-      // ── Candidates by kovil ──
-      const candByKovil = {}
-      users.filter(u => u.lookingFor === 'job' || u.lookingFor === 'both').forEach(u => {
-        const k = u.kovil || 'Not specified'
-        candByKovil[k] = (candByKovil[k] || 0) + 1
-      })
-
-      // ── Candidates by industry ──
-      const candByIndustry = {}
-      users.filter(u => u.lookingFor === 'job' || u.lookingFor === 'both').forEach(u => {
-        const k = u.industry || 'Not specified'
-        candByIndustry[k] = (candByIndustry[k] || 0) + 1
-      })
-
-      // ── Candidates by city ──
-      const candByCity = {}
-      users.forEach(u => {
-        if (u.city) candByCity[u.city] = (candByCity[u.city] || 0) + 1
-      })
-
-      // ── Top skills in demand (from jobs) ──
-      const skillDemand = {}
-      jobs.forEach(j => (j.requiredSkills || []).forEach(s => { skillDemand[s] = (skillDemand[s] || 0) + 1 }))
-
-      // ── Top skills candidates have ──
-      const skillSupply = {}
-      users.forEach(u => (u.skills || []).forEach(s => { skillSupply[s] = (skillSupply[s] || 0) + 1 }))
-
-      // ── Candidates by gender ──
-      const candByGender = {}
-      users.forEach(u => {
-        const k = u.gender || 'Not specified'
-        candByGender[k] = (candByGender[k] || 0) + 1
-      })
-
-      // ── Job gender preference ──
-      const jobsByGender = {}
-      jobs.forEach(j => {
-        const k = j.genderPreference || 'Any'
-        jobsByGender[k] = (jobsByGender[k] || 0) + 1
-      })
-
-      // ── Job-Candidate matching ──
-      // Count candidates whose industry matches at least one active job
-      const activeJobIndustries = new Set(jobs.filter(j => j.status === 'active').map(j => j.industry).filter(Boolean))
-      const matchedCandidates = users.filter(u =>
-        (u.lookingFor === 'job' || u.lookingFor === 'both') &&
-        u.industry && activeJobIndustries.has(u.industry)
-      ).length
-
-      // New members this week
+      const users = uSnap.docs.map(d => d.data())
+      const jobs  = jSnap.docs.map(d => d.data())
+      const apps  = aSnap.docs.map(d => d.data())
+      const pendingCount = apps.filter(a => a.status === 'pending').length
       const weekAgo = Date.now() - 7 * 86400000
       const newThisWeek = users.filter(u => u.createdAt?.toDate && u.createdAt.toDate().getTime() > weekAgo).length
-
-      // ── Application funnel ──
+      const activeJobs = jobs.filter(j => j.status === 'active')
+      const activeJobIndustries = new Set(activeJobs.map(j => j.industry).filter(Boolean))
+      const matchedCandidates = users.filter(u => (u.lookingFor === 'job' || u.lookingFor === 'both') && u.industry && activeJobIndustries.has(u.industry)).length
       const funnel = { pending: 0, shortlisted: 0, interview: 0, hired: 0, rejected: 0 }
       apps.forEach(a => { if (funnel[a.status] !== undefined) funnel[a.status]++ })
-
-      // ── Jobs posted this week / month ──
-      const now = Date.now()
-      const thisWeek  = jobs.filter(j => j.createdAt?.toDate && (now - j.createdAt.toDate().getTime()) < 7 * 86400000).length
-      const thisMonth = jobs.filter(j => j.createdAt?.toDate && (now - j.createdAt.toDate().getTime()) < 30 * 86400000).length
-
       const toSorted = obj => Object.entries(obj).sort((a,b) => b[1]-a[1]).map(([label,value]) => ({ label, value }))
-
+      const jobsByIndustry = {}; jobs.forEach(j => { const k = j.industry || 'Other'; jobsByIndustry[k] = (jobsByIndustry[k]||0)+1 })
+      const candByKovil = {}; users.filter(u => u.lookingFor === 'job' || u.lookingFor === 'both').forEach(u => { const k = u.kovil || 'Not specified'; candByKovil[k] = (candByKovil[k]||0)+1 })
       setDash({
-        totalUsers:   users.length,
-        totalJobs:    jobs.filter(j => j.status === 'active').length,
-        totalApps:    apps.length,
-        pendingApps:  pendingAppsCount,
-        hired:        funnel.hired,
-        thisWeek, thisMonth,
-        jobsByIndustry: toSorted(jobsByIndustry),
-        jobsByType:     toSorted(jobsByType),
-        jobsByLocation: toSorted(jobsByLocation),
-        candByKovil:    toSorted(candByKovil),
-        candByIndustry: toSorted(candByIndustry),
-        candByCity:     toSorted(candByCity),
-        skillDemand:    toSorted(skillDemand),
-        skillSupply:    toSorted(skillSupply),
-        candByGender:   toSorted(candByGender),
-        jobsByGender:   toSorted(jobsByGender),
-        funnel,
+        totalUsers: users.length, totalJobs: activeJobs.length, totalApps: apps.length,
+        pendingApps: pendingCount, hired: funnel.hired,
         seekers: users.filter(u => u.lookingFor === 'job' || u.lookingFor === 'both').length,
         employers: users.filter(u => u.lookingFor === 'hire' || u.lookingFor === 'both').length,
-        matchedCandidates,
-        newThisWeek,
+        matchedCandidates, newThisWeek, funnel,
+        jobsByIndustry: toSorted(jobsByIndustry),
+        candByKovil: toSorted(candByKovil),
       })
-    } catch(err) {
-      console.error('Dashboard load error:', err)
-      setDashError(err.message || 'Failed to load dashboard data')
-    } finally { setLoading(false) }
+    } catch(err) { setDashError(err.message) }
+    finally { setLoading(false) }
   }
 
   async function loadJobs() {
     setLoading(true)
     try {
       const snap = await getDocs(collection(db, 'nj_jobs'))
-      const jobsData = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      jobsData.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
-      setJobs(jobsData)
-    } catch(err) {
-      console.error('loadJobs error:', err)
-      showToast('Error loading jobs: ' + err.message)
-    }
-    setLoading(false)
+      const j = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      j.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
+      setJobs(j)
+    } finally { setLoading(false) }
   }
+
   async function loadApps() {
     setLoading(true)
     try {
       const snap = await getDocs(collection(db, 'nj_applications'))
-      const appsData = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      appsData.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
-      setApps(appsData)
-    } catch(err) {
-      console.error('loadApps error:', err)
-      showToast('Error loading applications: ' + err.message)
-    }
-    setLoading(false)
+      const a = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      a.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
+      // Load candidate profiles for each app
+      const withProfiles = await Promise.all(a.map(async app => {
+        try {
+          const { getDoc } = await import('firebase/firestore')
+          const uSnap = await getDoc(doc(db, 'nj_users', app.applicantUid))
+          return { ...app, candidateProfile: uSnap.exists() ? uSnap.data() : null }
+        } catch { return app }
+      }))
+      setApps(withProfiles)
+    } catch(err) { showToast('Error: ' + err.message) }
+    finally { setLoading(false) }
   }
+
   async function loadUsers() {
     setLoading(true)
     try {
       const snap = await getDocs(collection(db, 'nj_users'))
-      const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      usersData.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
-      setUsers(usersData)
-    } catch(err) {
-      console.error('loadUsers error:', err)
-      showToast('Error loading members: ' + err.message)
-    }
-    setLoading(false)
+      const u = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      u.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
+      setUsers(u)
+    } catch(err) { showToast('Error: ' + err.message) }
+    finally { setLoading(false) }
   }
+
   async function loadSkills() {
     setLoading(true)
     try {
-      const snap = await getDocs(query(collection(db, 'nj_skills'), orderBy('name')))
+      const snap = await getDocs(collection(db, 'nj_skills'))
       if (snap.empty) {
         for (const name of DEFAULT_SKILLS) await addDoc(collection(db, 'nj_skills'), { name, approved: true, createdAt: serverTimestamp() })
         setSkills(DEFAULT_SKILLS.map(name => ({ name, approved: true })))
       } else {
         setSkills(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       }
-      const suggSnap = await getDocs(query(collection(db, 'nj_skill_suggestions'), orderBy('createdAt', 'desc')))
-      setSkillSuggestions(suggSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+      const suggSnap = await getDocs(collection(db, 'nj_skill_suggestions'))
+      setSkillSugg(suggSnap.docs.map(d => ({ id: d.id, ...d.data() })))
     } finally { setLoading(false) }
   }
 
@@ -368,194 +248,50 @@ export default function AdminPage() {
     const s = job.status === 'active' ? 'closed' : 'active'
     await updateDoc(doc(db, 'nj_jobs', job.id), { status: s })
     setJobs(j => j.map(x => x.id === job.id ? { ...x, status: s } : x))
-    showToast(`Job ${s}`)
+    showToast('Job ' + s)
   }
 
-  // ── BULK: Notify all candidates about all active jobs (one-time) ────────────
-  async function notifyAllCandidatesAboutAllJobs() {
-    if (!confirm(`This will send a job digest email to all candidates about all active jobs. Continue?`)) return
-    setLoading(true)
-    try {
-      const jobsSnap  = await getDocs(collection(db, 'nj_jobs'))
-      const usersSnap = await getDocs(collection(db, 'nj_users'))
-      const activeJobs  = jobsSnap.docs.map(d=>({id:d.id,...d.data()})).filter(j=>j.status==='active')
-      const candidates  = usersSnap.docs.map(d=>({id:d.id,...d.data()}))
-        .filter(u=>(u.lookingFor==='job'||u.lookingFor==='both')&&u.email)
-
-      let sentToCandidates = 0
-      let sentToEmployers  = 0
-
-      // ── 1. Email each candidate: here are jobs matching your profile ────────
-      for (const candidate of candidates) {
-        const matchingJobs = activeJobs.filter(job => {
-          if (!job.industry && !(job.requiredSkills?.length)) return true
-          const industryMatch = candidate.industry && job.industry && candidate.industry === job.industry
-          const skillsMatch   = (candidate.skills||[]).some(s=>(job.requiredSkills||[]).map(r=>r.toLowerCase()).includes(s.toLowerCase()))
-          return industryMatch || skillsMatch
-        })
-        const jobsToShow = matchingJobs.length > 0 ? matchingJobs : activeJobs
-        const jobsList = jobsToShow.map(j =>
-          `<tr><td style="padding:8px 12px;border-bottom:1px solid #F0E0C8;">
-            <strong><a href="https://nagaratharjobs.com/jobs/${j.id}" style="color:#B8860B;text-decoration:none;">${j.title}</a></strong><br/>
-            <span style="font-size:13px;color:#8A7060;">${j.company} · ${j.location||j.locationType||'Any Location'} · ${j.jobType||'Full-Time'}</span>
-          </td></tr>`
-        ).join('')
-        try {
-          await fetch('/api/send-email', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ type: 'job_digest', data: {
-              to_email:       candidate.email,
-              candidate_name: candidate.displayName || 'Nagarathar Member',
-              job_count:      jobsToShow.length,
-              jobs_list:      jobsList,
-              jobs_url:       'https://nagaratharjobs.com/jobs',
-            }})
-          })
-          sentToCandidates++
-        } catch(e) { console.warn('candidate email failed:', candidate.email) }
-      }
-
-      // ── 2. Email each employer: here are candidates matching your job ───────
-      // Group candidates by job they match
-      const employers = usersSnap.docs.map(d=>({id:d.id,...d.data()}))
-        .filter(u=>(u.lookingFor==='hire'||u.lookingFor==='both') && u.email)
-
-      for (const job of activeJobs) {
-        if (!job.postedByEmail) continue
-        const matchingCandidates = candidates.filter(candidate => {
-          if (!job.industry && !(job.requiredSkills?.length)) return true
-          const industryMatch = candidate.industry && job.industry && candidate.industry === job.industry
-          const skillsMatch   = (candidate.skills||[]).some(s=>(job.requiredSkills||[]).map(r=>r.toLowerCase()).includes(s.toLowerCase()))
-          return industryMatch || skillsMatch
-        })
-        if (matchingCandidates.length === 0) continue
-
-        const candidatesList = matchingCandidates.slice(0,10).map(c =>
-          `<tr><td style="padding:8px 12px;border-bottom:1px solid #F0E0C8;">
-            <strong>${c.displayName||'Nagarathar Member'}</strong>
-            ${c.kovil ? `<span style="color:#B8860B;font-size:12px;margin-left:6px;">${c.kovil} Kovil</span>` : ''}
-            <br/>
-            <span style="font-size:13px;color:#8A7060;">
-              ${c.city||''}${c.city&&c.industry?' · ':''}${c.industry||''}${c.workExperience?' · '+c.workExperience:''}
-            </span><br/>
-            <a href="mailto:${c.email}" style="font-size:12px;color:#B8860B;">${c.email}</a>
-          </td></tr>`
-        ).join('')
-
-        try {
-          await fetch('/api/send-email', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ type: 'candidate_digest', data: {
-              to_email:         job.postedByEmail,
-              employer_name:    job.postedByName || 'Employer',
-              job_title:        job.title,
-              candidate_count:  matchingCandidates.length,
-              candidates_list:  candidatesList,
-              candidates_url:   'https://nagaratharjobs.com/candidates',
-              job_url:          `https://nagaratharjobs.com/jobs/${job.id}`,
-            }})
-          })
-          sentToEmployers++
-        } catch(e) { console.warn('employer email failed:', job.postedByEmail) }
-      }
-
-      showToast(`✉️ Sent to ${sentToCandidates} candidates & ${sentToEmployers} employers!`)
-    } catch(err) { showToast('Error: ' + err.message) }
-    finally { setLoading(false) }
-  }
-
-  // ── Notify matching candidates for a job ──────────────────────────────────
-  async function notifyMatchingCandidates(job) {
-    try {
-      // Get all candidates whose industry matches this job
-      const snap = await getDocs(collection(db, 'nj_users'))
-      const candidates = snap.docs.map(d => d.data()).filter(u =>
-        (u.lookingFor === 'job' || u.lookingFor === 'both') &&
-        u.email &&
-        (
-          !job.industry || // if no industry specified, notify all seekers
-          u.industry === job.industry ||
-          (u.skills || []).some(s => (job.requiredSkills || []).includes(s))
-        )
-      )
-      if (candidates.length === 0) { showToast('No matching candidates found'); return }
-      
-      let sent = 0
-      for (const c of candidates) {
-        try {
-          await fetch('/api/send-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'job_alert',
-              data: {
-                to_email:       c.email,
-                candidate_name: c.displayName || 'Nagarathar Member',
-                job_title:      job.title,
-                company:        job.company,
-                location:       job.location || job.locationType || 'Any Location',
-                salary:         job.salaryType === 'negotiable' ? 'Negotiable' : (job.salary || 'Not specified'),
-                job_url:        `https://nagaratharjobs.com/jobs/${job.id}`,
-              }
-            })
-          })
-          sent++
-        } catch(_) {}
-      }
-      showToast(`✉️ Notified ${sent} matching candidate${sent !== 1 ? 's' : ''}`)
-    } catch(err) {
-      showToast('Error: ' + err.message)
-    }
-  }
   async function deleteJob(id) {
     if (!confirm('Delete this job?')) return
     await deleteDoc(doc(db, 'nj_jobs', id))
     setJobs(j => j.filter(x => x.id !== id))
-    showToast('Job deleted')
+    showToast('Deleted')
   }
-  async function updateAppStatus(app, newStatus) {
-    await updateDoc(doc(db, 'nj_applications', app.id), { status: newStatus })
-    setApps(a => a.map(x => x.id === app.id ? { ...x, status: newStatus } : x))
-    logStatusChange({ adminUid: user?.uid, applicationId: app.id, applicantUid: app.applicantUid, applicantName: app.applicantName, applicantEmail: app.applicantEmail, jobTitle: app.jobTitle, oldStatus: app.status, newStatus }).catch(() => {})
-    sendStatusUpdate({ to_email: app.applicantEmail, applicant_name: app.applicantName, job_title: app.jobTitle, status: newStatus }).catch(() => {})
-    showToast(`Status → ${newStatus}`)
+
+  async function updateAppStatus(app, status) {
+    await updateDoc(doc(db, 'nj_applications', app.id), { status })
+    setApps(a => a.map(x => x.id === app.id ? { ...x, status } : x))
+    if (selectedApp?.id === app.id) setSelectedApp(p => ({ ...p, status }))
+    fetch('/api/send-email', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'status_update', data: {
+        to_email: app.applicantEmail, applicant_name: app.applicantName,
+        job_title: app.jobTitle, status,
+      }})
+    }).catch(() => {})
+    showToast('Status → ' + status)
   }
+
   async function toggleUserRole(u) {
     const r = u.role === 'admin' ? 'member' : 'admin'
     await updateDoc(doc(db, 'nj_users', u.id), { role: r })
     setUsers(us => us.map(x => x.id === u.id ? { ...x, role: r } : x))
-    showToast(`${u.displayName} → ${r}`)
+    showToast(u.displayName + ' → ' + r)
   }
+
   async function addSkill() {
     const name = newSkill.trim()
     if (!name || skills.find(s => s.name?.toLowerCase() === name.toLowerCase())) { showToast('Already exists'); return }
     await addDoc(collection(db, 'nj_skills'), { name, approved: true, createdAt: serverTimestamp() })
     setSkills(s => [...s, { name, approved: true }].sort((a,b) => a.name.localeCompare(b.name)))
-    setNewSkill(''); showToast(`Skill "${name}" added`)
-  }
-  async function deleteSkill(skill) {
-    if (!confirm(`Delete skill "${skill.name}"?`)) return
-    if (skill.id) await deleteDoc(doc(db, 'nj_skills', skill.id))
-    setSkills(s => s.filter(x => x.name !== skill.name)); showToast('Deleted')
-  }
-  async function approveSuggestion(sug) {
-    await addDoc(collection(db, 'nj_skills'), { name: sug.name, approved: true, createdAt: serverTimestamp() })
-    await deleteDoc(doc(db, 'nj_skill_suggestions', sug.id))
-    setSkills(s => [...s, { name: sug.name, approved: true }].sort((a,b) => a.name.localeCompare(b.name)))
-    setSkillSuggestions(s => s.filter(x => x.id !== sug.id))
-    showToast(`"${sug.name}" approved`)
-  }
-  async function rejectSuggestion(sug) {
-    await deleteDoc(doc(db, 'nj_skill_suggestions', sug.id))
-    setSkillSuggestions(s => s.filter(x => x.id !== sug.id))
-    showToast('Suggestion rejected')
+    setNewSkill(''); showToast('"' + name + '" added')
   }
 
+  const statusColor = { pending:'var(--gold)', shortlisted:'var(--blue)', interview:'#7B6CF6', hired:'var(--green)', rejected:'var(--muted)' }
   const d = dashData
 
   return (
     <div className="page">
-      {/* Header */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
         <div>
           <h1 className="page-title" style={{ marginBottom:2 }}>Admin Dashboard</h1>
@@ -564,241 +300,112 @@ export default function AdminPage() {
         <span className="badge badge-gold" style={{ fontSize:'13px', padding:'6px 14px' }}>⚡ Admin</span>
       </div>
 
-      {toast && (
-        <div className="alert alert-success" style={{ position:'fixed', top:80, right:20, zIndex:200, width:'auto', minWidth:260, boxShadow:'var(--shadow-lg)' }}>
-          ✓ {toast}
-        </div>
-      )}
+      {toast && <div className="alert alert-success" style={{ position:'fixed', top:80, right:20, zIndex:200, width:'auto', minWidth:260, boxShadow:'var(--shadow-lg)' }}>✓ {toast}</div>}
 
-      {/* Tabs */}
       <div style={{ overflowX:'auto' }}>
         <div className="tabs" style={{ minWidth:600 }}>
-          {TABS.map(([v,l]) => (
-            <button key={v} className={`tab-btn ${tab===v?'active':''}`} onClick={() => setTab(v)}>{l}</button>
-          ))}
+          {TABS.map(([v,l]) => <button key={v} className={`tab-btn ${tab===v?'active':''}`} onClick={() => setTab(v)}>{l}</button>)}
         </div>
       </div>
 
-      {/* ════ DASHBOARD TAB ════ */}
+      {/* ════ DASHBOARD ════ */}
       {tab === 'dashboard' && (
         <div>
-          {loading && <div style={{ textAlign:'center', padding:60 }}><div className="spinner" style={{ margin:'0 auto' }}/><p style={{ color:'var(--muted)', marginTop:16, fontSize:14 }}>Loading dashboard data…</p></div>}
-          {dashError && !loading && (
-            <div className="alert alert-error" style={{ marginTop:16 }}>
-              ⚠ {dashError}
-              <button onClick={loadDashboard} className="btn btn-ghost btn-sm" style={{ marginLeft:12 }}>Retry</button>
-            </div>
-          )}
-
-          {d && (
+          {loading && <div style={{ textAlign:'center', padding:60 }}><div className="spinner" style={{ margin:'0 auto' }}/><p style={{ color:'var(--muted)', marginTop:16 }}>Loading…</p></div>}
+          {dashError && !loading && <div className="alert alert-error">⚠ {dashError} <button onClick={loadDashboard} className="btn btn-ghost btn-sm" style={{ marginLeft:12 }}>Retry</button></div>}
+          {d && !loading && (
             <>
-              {/* KPI row */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:14 }}>
-                <StatCard icon="👥" value={d.totalUsers}  label="Registered Members" color="var(--blue)"  sub={`${d.seekers} seekers · ${d.employers} employers`}/>
-                <StatCard icon="💼" value={d.totalJobs}   label="Active Jobs"         color="var(--green)" sub={`${d.thisWeek} this week · ${d.thisMonth} this month`}/>
-                <StatCard icon="📨" value={d.totalApps}   label="Total Applications"  color="var(--gold)"  sub={`${d.pendingApps} pending review`}/>
-                <StatCard icon="🎉" value={d.hired} label="Successful Placements" color="var(--green)" sub="Community successes"/>
+                <StatCard icon="👥" value={d.totalUsers}  label="Registered Members" color="var(--blue)"  sub={d.seekers + ' seekers · ' + d.employers + ' employers'}/>
+                <StatCard icon="💼" value={d.totalJobs}   label="Active Jobs"         color="var(--green)" sub={d.newThisWeek + ' new members this week'}/>
+                <StatCard icon="📨" value={d.totalApps}   label="Total Applications"  color="var(--gold)"  sub={d.pendingApps + ' pending review'}/>
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:24 }}>
-                <StatCard icon="🔍" value={d.seekers}            label="Job Seekers"            color="var(--blue)"  sub={`${d.newThisWeek} joined this week`}/>
-                <StatCard icon="🏢" value={d.employers}           label="Employers"              color="var(--gold)"  sub="Posted jobs"/>
-                <StatCard icon="✨" value={d.matchedCandidates}   label="Matching Candidates"    color="var(--green)" sub="Industry match with active jobs"/>
-              </div>
-
-              {/* Bulk notification banner */}
-              <div className="card" style={{ marginBottom:20, background:'linear-gradient(135deg,#FAF7F0,#F5E9C8)', border:'1px solid #D4A017' }}>
-                <div className="card-body" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12 }}>
-                  <div>
-                    <div style={{ fontWeight:700, fontSize:'1.05rem', color:'var(--charcoal)' }}>📣 Connect Candidates & Employers</div>
-                    <div style={{ fontSize:'13px', color:'var(--muted)', marginTop:4 }}>
-                      Email {d?.seekers || ''} candidates about active jobs · Email employers about matching candidate profiles
-                    </div>
-                  </div>
-                  <button className="btn btn-primary" onClick={notifyAllCandidatesAboutAllJobs} disabled={loading}>
-                    📧 Send Job Digest Now
-                  </button>
-                </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:20 }}>
+                <StatCard icon="🎉" value={d.hired}              label="Successful Placements" color="var(--green)" sub="Hired"/>
+                <StatCard icon="🔍" value={d.seekers}            label="Job Seekers"           color="var(--blue)"  sub="Looking for work"/>
+                <StatCard icon="✨" value={d.matchedCandidates}  label="Matching Candidates"   color="var(--gold)"  sub="Industry match"/>
               </div>
 
-              {/* Application funnel */}
+              {/* Funnel */}
               <div className="card" style={{ marginBottom:20 }}>
                 <div className="card-body">
                   <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'1.2rem', fontWeight:600, marginBottom:16 }}>Application Funnel</div>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:12 }}>
-                    {[
-                      { label:'Applied',     value: d.totalApps,       color:'var(--blue)',   bg:'#E8EEF5' },
-                      { label:'Shortlisted', value: d.funnel.shortlisted, color:'var(--gold)',   bg:'var(--gold-pale)' },
-                      { label:'Interview',   value: d.funnel.interview, color:'#7B6CF6',       bg:'#F0EEFF' },
-                      { label:'Hired',       value: d.funnel.hired,    color:'var(--green)',  bg:'#E8F5EE' },
-                      { label:'Rejected',    value: d.funnel.rejected, color:'var(--red)',    bg:'#FDECEC' },
-                    ].map(f => (
-                      <div key={f.label} style={{ textAlign:'center', background:f.bg, borderRadius:'var(--radius)', padding:'16px 8px', border:`1px solid ${f.color}20` }}>
-                        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'2.2rem', fontWeight:700, color:f.color }}>{f.value}</div>
-                        <div style={{ fontSize:'11px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.04em', marginTop:4 }}>{f.label}</div>
-                        <div style={{ marginTop:8, height:4, background:'rgba(0,0,0,0.08)', borderRadius:2 }}>
-                          <div style={{ height:'100%', width:`${d.totalApps > 0 ? Math.round((f.value/d.totalApps)*100) : 0}%`, background:f.color, borderRadius:2 }}/>
-                        </div>
-                        <div style={{ fontSize:'10px', color:f.color, fontWeight:600, marginTop:3 }}>{d.totalApps > 0 ? Math.round((f.value/d.totalApps)*100) : 0}%</div>
+                    {[['Applied',d.totalApps,'var(--blue)','#E8EEF5'],['Shortlisted',d.funnel.shortlisted,'var(--gold)','var(--gold-pale)'],['Interview',d.funnel.interview,'#7B6CF6','#F0EEFF'],['Hired',d.funnel.hired,'var(--green)','#E8F5EE'],['Rejected',d.funnel.rejected,'var(--muted)','#F5F5F5']].map(([label,value,color,bg]) => (
+                      <div key={label} style={{ textAlign:'center', background:bg, borderRadius:'var(--radius)', padding:'16px 8px' }}>
+                        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'2.2rem', fontWeight:700, color }}>{value}</div>
+                        <div style={{ fontSize:'11px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.04em', marginTop:4 }}>{label}</div>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* Jobs charts row */}
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
-                <ChartCard title="Jobs by Industry" subtitle="Which industries are posting most">
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                <ChartCard title="Jobs by Industry" subtitle="Which industries are posting">
                   <BarChart data={d.jobsByIndustry.slice(0,8)} height={160}/>
                 </ChartCard>
-                <ChartCard title="Jobs by Type" subtitle="Full-time vs Part-time etc.">
-                  <DonutChart data={d.jobsByType} size={150}/>
-                </ChartCard>
-              </div>
-
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
-                <ChartCard title="Jobs by Location" subtitle="Where are the opportunities?">
-                  <HorizBar data={d.jobsByLocation}/>
-                </ChartCard>
-                <ChartCard title="Top Skills in Demand" subtitle="Most requested by employers">
-                  <HorizBar data={d.skillDemand} color="#1A4A7A"/>
-                </ChartCard>
-              </div>
-
-              {/* Candidates charts row */}
-              <div style={{ marginBottom:12 }}>
-                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'1.5rem', fontWeight:600, color:'var(--charcoal)', marginBottom:14, paddingBottom:8, borderBottom:'2px solid var(--gold-pale)' }}>
-                  👥 Candidate Analytics
-                </div>
-              </div>
-
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
-                <ChartCard title="Candidates by Kovil" subtitle="Community distribution across clans">
+                <ChartCard title="Candidates by Kovil" subtitle="Community distribution">
                   <DonutChart data={d.candByKovil} size={150}/>
                 </ChartCard>
-                <ChartCard title="Candidates by Industry" subtitle="Professional background of job seekers">
-                  <BarChart data={d.candByIndustry.slice(0,8)} height={160}/>
-                </ChartCard>
               </div>
-
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
-                <ChartCard title="Candidates by City" subtitle="Where are our members located?">
-                  <HorizBar data={d.candByCity}/>
-                </ChartCard>
-                <ChartCard title="Skills Candidates Have" subtitle="What talent is available in community">
-                  <HorizBar data={d.skillSupply} color="#1A6B3C"/>
-                </ChartCard>
-              </div>
-
-              {/* Gender charts */}
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
-                <ChartCard title="Candidates by Gender" subtitle="Gender distribution of job seekers">
-                  <DonutChart data={d.candByGender} size={150}/>
-                </ChartCard>
-                <ChartCard title="Jobs by Gender Preference" subtitle="What employers are looking for">
-                  <DonutChart data={d.jobsByGender} size={150}/>
-                </ChartCard>
-              </div>
-
-              {/* Skill gap insight */}
-              {d.skillDemand.length > 0 && d.skillSupply.length > 0 && (
-                <div className="card" style={{ marginBottom:16 }}>
-                  <div className="card-body">
-                    <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'1.2rem', fontWeight:600, marginBottom:12 }}>
-                      🔍 Skill Gap Analysis
-                    </div>
-                    <p style={{ fontSize:'13px', color:'var(--muted)', marginBottom:14 }}>
-                      Skills in demand by employers vs skills available in candidates
-                    </p>
-                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                      {d.skillDemand.slice(0,6).map(skill => {
-                        const supply = d.skillSupply.find(s => s.label === skill.label)?.value || 0
-                        const demand = skill.value
-                        const gap = demand - supply
-                        return (
-                          <div key={skill.label} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 12px', background:'var(--ivory)', borderRadius:'var(--radius)', border:'1px solid var(--border)' }}>
-                            <span style={{ width:140, fontSize:13, fontWeight:500 }}>{skill.label}</span>
-                            <div style={{ flex:1 }}>
-                              <div style={{ display:'flex', gap:4, marginBottom:3 }}>
-                                <span style={{ fontSize:11, color:'var(--blue)' }}>Demand: {demand}</span>
-                                <span style={{ fontSize:11, color:'var(--muted)' }}>·</span>
-                                <span style={{ fontSize:11, color:'var(--green)' }}>Supply: {supply}</span>
-                              </div>
-                              <div style={{ height:8, background:'var(--border)', borderRadius:4, overflow:'hidden', position:'relative' }}>
-                                <div style={{ position:'absolute', height:'100%', width:`${Math.min((supply/Math.max(demand,1))*100,100)}%`, background:'var(--green)', borderRadius:4 }}/>
-                                <div style={{ position:'absolute', height:'100%', width:`${Math.min((demand/Math.max(demand,1))*100,100)}%`, background:'rgba(26,74,122,0.25)', borderRadius:4 }}/>
-                              </div>
-                            </div>
-                            <span style={{ fontSize:12, fontWeight:700, color: gap > 0 ? 'var(--red)' : 'var(--green)', width:70, textAlign:'right' }}>
-                              {gap > 0 ? `−${gap} gap` : `+${Math.abs(gap)} surplus`}
-                            </span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
             </>
           )}
         </div>
       )}
 
-      {/* ════ JOBS TAB ════ */}
+      {/* ════ JOBS ════ */}
       {tab === 'jobs' && (
         <div>
           {loading && <p style={{ color:'var(--muted)' }}>Loading…</p>}
           <div style={{ fontSize:'14px', color:'var(--muted)', marginBottom:12 }}>{jobs.length} total postings</div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {jobs.map(job => (
-              <div key={job.id} className="card" style={{ transition:'none' }}>
+              <div key={job.id} className="card">
                 <div className="card-body" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap', padding:'14px 20px' }}>
                   <div style={{ flex:1 }}>
                     <div style={{ fontWeight:600 }}>{job.title}</div>
-                    <div style={{ fontSize:'13px', color:'var(--muted)' }}>
-                      {job.company} · {job.location || job.locationType} · {job.jobType}
-                      {job.salary && ` · ${job.salary}`}
-                    </div>
-                    <div style={{ fontSize:'12px', color:'var(--muted)', marginTop:2 }}>
-                      by {job.postedByName || job.postedByEmail} · {job.applicantCount || 0} applicants
-                    </div>
+                    <div style={{ fontSize:'13px', color:'var(--muted)' }}>{job.company} · {job.location||job.locationType} · {job.jobType}</div>
+                    <div style={{ fontSize:'12px', color:'var(--muted)', marginTop:2 }}>by {job.postedByName||job.postedByEmail} · {job.applicantCount||0} applicants</div>
                   </div>
                   <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                     <span className={`badge badge-${job.status==='active'?'green':'muted'}`}>{job.status}</span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => toggleJobStatus(job)}>{job.status==='active'?'Close':'Reopen'}</button>
+                    <Link to={`/jobs/${job.id}`} className="btn btn-ghost btn-sm">View</Link>
                     <Link to={`/jobs/${job.id}/edit`} className="btn btn-ghost btn-sm">✏️ Edit</Link>
-                    {job.status==='active' && <button className="btn btn-outline btn-sm" style={{ color: 'var(--green)', borderColor: 'var(--green)' }} onClick={() => notifyMatchingCandidates(job)}>📧 Notify Matches</button>}
+                    <button className="btn btn-ghost btn-sm" onClick={() => toggleJobStatus(job)}>{job.status==='active'?'Close':'Reopen'}</button>
                     <button className="btn btn-danger btn-sm" onClick={() => deleteJob(job.id)}>Delete</button>
                   </div>
                 </div>
               </div>
             ))}
-            {!loading && jobs.length === 0 && <Empty icon="💼" msg="No job postings yet"/>}
+            {!loading && jobs.length === 0 && <Empty icon="💼" msg="No jobs yet"/>}
           </div>
         </div>
       )}
 
-      {/* ════ APPLICATIONS TAB ════ */}
+      {/* ════ APPLICATIONS ════ */}
       {tab === 'apps' && (
         <div>
           {loading && <p style={{ color:'var(--muted)' }}>Loading…</p>}
-          <div style={{ fontSize:'14px', color:'var(--muted)', marginBottom:12 }}>
-            {apps.length} total · {apps.filter(a => a.status==='pending').length} pending
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          <div style={{ fontSize:'14px', color:'var(--muted)', marginBottom:12 }}>{apps.length} total · {apps.filter(a=>a.status==='pending').length} pending</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             {apps.map(app => (
-              <div key={app.id} className="card" style={{ transition:'none' }}>
+              <div key={app.id} className="card" style={{ border: selectedApp?.id === app.id ? '2px solid var(--gold)' : '1px solid var(--border)' }}>
                 <div className="card-body" style={{ padding:'14px 20px' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap', cursor:'pointer' }}
+                    onClick={() => setSelectedApp(selectedApp?.id === app.id ? null : app)}>
                     <div>
-                      <div style={{ fontWeight:600 }}>{app.applicantName}<span style={{ color:'var(--muted)', fontWeight:400 }}> → </span>{app.jobTitle}</div>
+                      <div style={{ fontWeight:600 }}>{app.applicantName} <span style={{ color:'var(--muted)', fontWeight:400 }}>→</span> {app.jobTitle}</div>
                       <div style={{ fontSize:'13px', color:'var(--muted)' }}>
-                        {app.applicantEmail}{app.applicantPhone && ` · ${app.applicantPhone}`}{app.applicantKovil && ` · ${app.applicantKovil} Kovil`}
+                        📧 {app.applicantEmail}
+                        {app.applicantPhone && <span> · 📞 {app.applicantPhone}</span>}
+                        {app.applicantKovil && <span> · {app.applicantKovil} Kovil</span>}
                       </div>
+                      <div style={{ fontSize:'12px', color:'var(--muted)', marginTop:2 }}>{app.company}</div>
                     </div>
                     <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                      <span className={`badge ${sBadge(app.status)}`}>{app.status}</span>
                       <select className="form-control" style={{ width:150, padding:'5px 10px', fontSize:'13px' }}
-                        value={app.status} onChange={e => updateAppStatus(app, e.target.value)}>
+                        value={app.status} onClick={e => e.stopPropagation()} onChange={e => updateAppStatus(app, e.target.value)}>
                         <option value="pending">Pending</option>
                         <option value="shortlisted">Shortlisted</option>
                         <option value="interview">Interview</option>
@@ -807,9 +414,60 @@ export default function AdminPage() {
                       </select>
                     </div>
                   </div>
+
+                  {/* Cover letter */}
                   {app.coverLetter && (
                     <div style={{ marginTop:10, fontSize:'13px', color:'var(--slate)', background:'var(--ivory)', padding:'8px 12px', borderRadius:4, fontStyle:'italic' }}>
                       "{app.coverLetter.slice(0,240)}{app.coverLetter.length>240?'…':''}"
+                    </div>
+                  )}
+
+                  {/* Full candidate profile — expanded */}
+                  {selectedApp?.id === app.id && (
+                    <div style={{ marginTop:16, paddingTop:16, borderTop:'2px solid var(--gold-pale)' }}>
+                      <div style={{ fontWeight:700, fontSize:'14px', color:'var(--charcoal)', marginBottom:12 }}>
+                        📋 Full Candidate Profile
+                      </div>
+                      {app.candidateProfile ? (
+                        <>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:12 }}>
+                            {[
+                              ['Kovil',           app.candidateProfile.kovil],
+                              ['City',            app.candidateProfile.city],
+                              ['Gender',          app.candidateProfile.gender],
+                              ['Industry',        app.candidateProfile.industry],
+                              ['Experience',      app.candidateProfile.workExperience],
+                              ['Qualification',   app.candidateProfile.currentQualification],
+                              ['Current Salary',  app.candidateProfile.currentSalary],
+                              ['Expected Salary', app.candidateProfile.expectedSalary],
+                              ['Preferred Loc',   app.candidateProfile.preferredLocation],
+                            ].filter(([,v]) => v).map(([label, value]) => (
+                              <div key={label} style={{ background:'var(--ivory)', padding:'8px 12px', borderRadius:6, border:'1px solid var(--border)' }}>
+                                <div style={{ fontSize:'10px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.04em' }}>{label}</div>
+                                <div style={{ fontSize:'13px', fontWeight:600, color:'var(--slate)', marginTop:2 }}>{value}</div>
+                              </div>
+                            ))}
+                          </div>
+                          {app.candidateProfile.skills?.length > 0 && (
+                            <div style={{ marginBottom:10 }}>
+                              <div style={{ fontSize:'11px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:6 }}>Skills</div>
+                              <div className="tag-list">{app.candidateProfile.skills.map(s => <span key={s} className="tag">{s}</span>)}</div>
+                            </div>
+                          )}
+                          {app.candidateProfile.resumeText && (
+                            <div style={{ marginBottom:12, fontSize:'13px', color:'var(--slate)', background:'var(--ivory)', padding:'10px 14px', borderRadius:6, border:'1px solid var(--border)', lineHeight:1.7 }}>
+                              {app.candidateProfile.resumeText}
+                            </div>
+                          )}
+                          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                            <a href={'mailto:' + app.applicantEmail} className="btn btn-primary btn-sm">📧 Email</a>
+                            {app.applicantPhone && <a href={'tel:' + app.applicantPhone} className="btn btn-outline btn-sm">📞 {app.applicantPhone}</a>}
+                            <button onClick={() => { navigator.clipboard?.writeText(app.applicantName + '\n' + app.applicantEmail + '\n' + (app.applicantPhone||'')); showToast('Contact details copied!') }} className="btn btn-ghost btn-sm">📋 Copy Details</button>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ color:'var(--muted)', fontSize:'13px' }}>Profile not available — candidate may not have completed their profile.</div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -820,28 +478,117 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ════ MEMBERS TAB ════ */}
+      {/* ════ MEMBERS ════ */}
       {tab === 'users' && (
         <div>
           {loading && <p style={{ color:'var(--muted)' }}>Loading…</p>}
           <div style={{ fontSize:'14px', color:'var(--muted)', marginBottom:12 }}>{users.length} registered members</div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {users.map(u => (
-              <div key={u.id} className="card" style={{ transition:'none' }}>
-                <div className="card-body" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap', padding:'12px 20px' }}>
-                  <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-                    <div style={S.av}>
-                      {u.photoURL ? <img src={u.photoURL} style={{ width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' }} alt=""/> : (u.displayName?.[0]?.toUpperCase()||'?')}
+              <div key={u.id} className="card" style={{ border: selectedUser?.id === u.id ? '2px solid var(--gold)' : '1px solid var(--border)' }}>
+                <div className="card-body" style={{ padding:'14px 20px' }}>
+                  {/* Header row — always visible */}
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap', cursor:'pointer' }}
+                    onClick={() => setSelectedUser(selectedUser?.id === u.id ? null : u)}>
+                    <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+                      <div style={S.av}>{u.photoURL ? <img src={u.photoURL} style={{ width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' }} alt=""/> : (u.displayName?.[0]?.toUpperCase()||'?')}</div>
+                      <div>
+                        <div style={{ fontWeight:600 }}>{u.displayName||'(no name)'}</div>
+                        <div style={{ fontSize:'13px', color:'var(--muted)' }}>
+                          📧 {u.email}
+                          {u.phone && <span> · 📞 {u.phone}</span>}
+                        </div>
+                        <div style={{ fontSize:'12px', color:'var(--gold)', marginTop:2 }}>
+                          {u.kovil && u.kovil + ' Kovil'}
+                          {u.city && ' · ' + u.city}
+                          {u.lookingFor === 'job' ? ' · 🔍 Job Seeker' : u.lookingFor === 'hire' ? ' · 💼 Employer' : u.lookingFor === 'both' ? ' · 🤝 Both' : ''}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontWeight:600 }}>{u.displayName||'(no name)'}</div>
-                      <div style={{ fontSize:'13px', color:'var(--muted)' }}>{u.email}{u.kovil&&` · ${u.kovil}`}{u.city&&` · ${u.city}`}</div>
+                    <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                      <span className={`badge badge-${u.role==='admin'?'gold':'muted'}`}>{u.role||'member'}</span>
+                      <span style={{ fontSize:'12px', color:'var(--muted)' }}>{selectedUser?.id === u.id ? '▲ Hide' : '▼ Details'}</span>
                     </div>
                   </div>
-                  <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                    <span className={`badge badge-${u.role==='admin'?'gold':'muted'}`}>{u.role||'member'}</span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => toggleUserRole(u)}>{u.role==='admin'?'Remove Admin':'Make Admin'}</button>
-                  </div>
+
+                  {/* Expanded full profile */}
+                  {selectedUser?.id === u.id && (
+                    <div style={{ marginTop:16, paddingTop:16, borderTop:'2px solid var(--gold-pale)' }}>
+
+                      {/* Contact box — prominent */}
+                      <div style={{ background:'var(--gold-pale)', border:'1px solid var(--gold)', borderRadius:8, padding:'14px 16px', marginBottom:16 }}>
+                        <div style={{ fontWeight:700, fontSize:'13px', color:'var(--gold)', marginBottom:8, textTransform:'uppercase', letterSpacing:'0.05em' }}>Contact Details</div>
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:12 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                            <span>📧</span>
+                            <a href={'mailto:' + u.email} style={{ color:'var(--dark)', fontWeight:600, fontSize:'14px' }}>{u.email}</a>
+                            <button onClick={() => { navigator.clipboard?.writeText(u.email); showToast('Email copied!') }} className="btn btn-ghost btn-sm" style={{ padding:'2px 8px', fontSize:'11px' }}>Copy</button>
+                          </div>
+                          {u.phone && (
+                            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                              <span>📞</span>
+                              <a href={'tel:' + u.phone} style={{ color:'var(--dark)', fontWeight:600, fontSize:'14px' }}>{u.phone}</a>
+                              <button onClick={() => { navigator.clipboard?.writeText(u.phone); showToast('Phone copied!') }} className="btn btn-ghost btn-sm" style={{ padding:'2px 8px', fontSize:'11px' }}>Copy</button>
+                            </div>
+                          )}
+                          {!u.phone && <span style={{ color:'var(--muted)', fontSize:'13px' }}>No phone number added</span>}
+                        </div>
+                      </div>
+
+                      {/* Profile details grid */}
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:12 }}>
+                        {[
+                          ['Kovil',           u.kovil],
+                          ['Pirivu',          u.pirivu],
+                          ['City',            u.city],
+                          ['Gender',          u.gender],
+                          ['Industry',        u.industry || u.companyIndustry],
+                          ['Experience',      u.workExperience],
+                          ['Qualification',   u.currentQualification],
+                          ['Current Salary',  u.currentSalary],
+                          ['Expected Salary', u.expectedSalary],
+                          ['Company',         u.companyName],
+                          ['Designation',     u.designation],
+                          ['Preferred Loc',   u.preferredLocation],
+                        ].filter(([,v]) => v).map(([label, value]) => (
+                          <div key={label} style={{ background:'var(--ivory)', padding:'8px 12px', borderRadius:6, border:'1px solid var(--border)' }}>
+                            <div style={{ fontSize:'10px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.04em' }}>{label}</div>
+                            <div style={{ fontSize:'13px', fontWeight:600, color:'var(--slate)', marginTop:2 }}>{value}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Skills */}
+                      {u.skills?.length > 0 && (
+                        <div style={{ marginBottom:10 }}>
+                          <div style={{ fontSize:'11px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:6 }}>Skills</div>
+                          <div className="tag-list">{u.skills.map(s => <span key={s} className="tag">{s}</span>)}</div>
+                        </div>
+                      )}
+
+                      {/* Resume / Bio */}
+                      {(u.resumeText || u.bio) && (
+                        <div style={{ marginBottom:12, fontSize:'13px', color:'var(--slate)', background:'var(--ivory)', padding:'10px 14px', borderRadius:6, border:'1px solid var(--border)', lineHeight:1.7 }}>
+                          {u.resumeText || u.bio}
+                        </div>
+                      )}
+
+                      {/* LinkedIn */}
+                      {u.linkedinUrl && (
+                        <a href={u.linkedinUrl} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm" style={{ marginBottom:12 }}>🔗 LinkedIn / Website</a>
+                      )}
+
+                      {/* Admin actions */}
+                      <div style={{ display:'flex', gap:8, paddingTop:10, borderTop:'1px solid var(--border)' }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => toggleUserRole(u)}>
+                          {u.role==='admin' ? 'Remove Admin' : 'Make Admin'}
+                        </button>
+                        <button onClick={() => { navigator.clipboard?.writeText(u.displayName + '\n' + u.email + '\n' + (u.phone||'')); showToast('Details copied!') }} className="btn btn-ghost btn-sm">
+                          📋 Copy Contact
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -850,52 +597,26 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ════ SKILLS MASTER TAB ════ */}
+      {/* ════ SKILLS ════ */}
       {tab === 'skills' && (
         <div>
           <div className="card" style={{ marginBottom:20 }}>
             <div className="card-body">
               <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'1.3rem', marginBottom:14 }}>Add New Skill</h3>
               <div style={{ display:'flex', gap:10 }}>
-                <input className="form-control" value={newSkill}
-                  onChange={e => setNewSkill(e.target.value)}
-                  onKeyDown={e => e.key==='Enter' && (e.preventDefault(), addSkill())}
-                  placeholder="e.g. SEBI Certification, Meenakari Work…" style={{ flex:1 }}/>
-                <button className="btn btn-primary" onClick={addSkill}>+ Add Skill</button>
+                <input className="form-control" value={newSkill} onChange={e => setNewSkill(e.target.value)} onKeyDown={e => e.key==='Enter' && (e.preventDefault(), addSkill())} placeholder="e.g. GST Filing, Gold Trading…" style={{ flex:1 }}/>
+                <button className="btn btn-primary" onClick={addSkill}>+ Add</button>
               </div>
             </div>
           </div>
-          {skillSuggestions.length > 0 && (
-            <div className="card" style={{ marginBottom:20 }}>
-              <div className="card-body">
-                <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'1.3rem', marginBottom:14 }}>
-                  User Suggestions ({skillSuggestions.length})
-                </h3>
-                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                  {skillSuggestions.map(sug => (
-                    <div key={sug.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background:'var(--gold-pale)', borderRadius:'var(--radius)', border:'1px solid #E0C97A' }}>
-                      <span style={{ fontWeight:600 }}>{sug.name}</span>
-                      <div style={{ display:'flex', gap:8 }}>
-                        <button className="btn btn-primary btn-sm" onClick={() => approveSuggestion(sug)}>✓ Approve</button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => rejectSuggestion(sug)}>✕ Reject</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
           <div className="card">
             <div className="card-body">
-              <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'1.3rem', marginBottom:14 }}>
-                Approved Skills ({skills.length})
-              </h3>
+              <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'1.3rem', marginBottom:14 }}>Skills ({skills.length})</h3>
               {loading && <p style={{ color:'var(--muted)' }}>Loading…</p>}
               <div className="tag-list">
                 {skills.map((skill, i) => (
                   <span key={skill.id||i} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'5px 12px', borderRadius:20, background:'var(--ivory)', border:'1px solid var(--border)', fontSize:'13px' }}>
                     {skill.name||skill}
-                    <button onClick={() => deleteSkill(skill)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--muted)', fontSize:'14px', padding:0 }}>×</button>
                   </span>
                 ))}
               </div>
@@ -907,6 +628,10 @@ export default function AdminPage() {
   )
 }
 
-function sBadge(s) { return { pending:'badge-blue', shortlisted:'badge-gold', interview:'badge-blue', hired:'badge-green', rejected:'badge-muted' }[s]||'badge-muted' }
-function Empty({ icon, msg }) { return <div className="empty-state" style={{ padding:'32px 0' }}><div className="icon">{icon}</div><p>{msg}</p></div> }
-const S = { av: { width:36, height:36, borderRadius:'50%', background:'var(--gold)', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:'1rem', flexShrink:0, overflow:'hidden' } }
+function Empty({ icon, msg }) {
+  return <div className="empty-state" style={{ padding:'32px 0' }}><div className="icon">{icon}</div><p>{msg}</p></div>
+}
+
+const S = {
+  av: { width:36, height:36, borderRadius:'50%', background:'var(--gold)', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:'1rem', flexShrink:0, overflow:'hidden' }
+}
