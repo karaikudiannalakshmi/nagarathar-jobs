@@ -1,6 +1,6 @@
 // src/utils/constants.js
 
-export const KOVILS =export const KOVILS = [
+export const KOVILS = [
   'Ilayathangudi',
   'Mathur',
   'Vairavan Koil',
