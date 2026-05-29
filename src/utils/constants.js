@@ -1,11 +1,15 @@
 // src/utils/constants.js
 
-export const KOVILS = [
-  'Ilayathakudi', 'Mathur', 'Iraniyur', 'Pillaiyarpatti', 'Soorakudi',
-  'Velankudi', 'Nemathanpatti', 'Niraikulam', 'Kandanur', 'Mosakudi',
-  'Ariyakudi', 'Kuruvikondanpatti', 'Uraiyur', 'Managudi', 'Sembanarkovil',
-  'Nemam', 'Thiruvarangam', 'Ilangarai', 'Kottaiyur', 'Kabilarmalai',
-  'Other',
+export const KOVILS =export const KOVILS = [
+  'Ilayathangudi',
+  'Mathur',
+  'Vairavan Koil',
+  'Pillayarpatti',
+  'Soorakkudi',
+  'Velangudi',
+  'Iluppakkudi',
+  'Iraniyur Koil',
+  'Nemam Koil',
 ]
 
 export const INDUSTRIES = [
