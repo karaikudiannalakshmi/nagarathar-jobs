@@ -282,7 +282,14 @@ export default function CandidatesPage() {
                 {/* WhatsApp if phone available */}
                 {selected.phone && (
                   <div style={{ marginTop:10 }}>
-                    <a href={`https://wa.me/${selected.phone.replace(/[^0-9]/g,'')}?text=Hello ${selected.displayName}, I found your profile on Nagarathar Jobs and would like to discuss a job opportunity with you.`}
+                    <a href={(() => {
+                      let num = selected.phone.replace(/[^0-9]/g, '')
+                      // Add India country code if not present
+                      if (num.length === 10) num = '91' + num
+                      else if (num.startsWith('0')) num = '91' + num.slice(1)
+                      const msg = encodeURIComponent(`Hello ${selected.displayName}, I found your profile on Nagarathar Jobs and would like to discuss a job opportunity with you.`)
+                      return `https://wa.me/${num}?text=${msg}`
+                    })()}
                       target="_blank" rel="noreferrer"
                       style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', background:'#25D366', color:'white', borderRadius:8, textDecoration:'none', fontWeight:600, fontSize:'13px' }}>
                       <span style={{ fontSize:'1.2rem' }}>💬</span>
