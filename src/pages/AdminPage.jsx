@@ -279,6 +279,31 @@ export default function AdminPage() {
     showToast(u.displayName + ' → ' + r)
   }
 
+
+  async function fixRolesFromJobPostings() {
+    if (!confirm('Auto-fix roles: job posters will be set to Employer or Both. Continue?')) return
+    setLoading(true)
+    try {
+      const jobsSnap = await getDocs(collection(db, 'nj_jobs'))
+      const posterUids = [...new Set(jobsSnap.docs.map(d => d.data().postedBy).filter(Boolean))]
+      const usersSnap = await getDocs(collection(db, 'nj_users'))
+      const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      let updated = 0
+      for (const uid of posterUids) {
+        const u = allUsers.find(x => x.id === uid)
+        if (!u) continue
+        if (!u.lookingFor || u.lookingFor === 'job') {
+          const newRole = u.lookingFor === 'job' ? 'both' : 'hire'
+          await updateDoc(doc(db, 'nj_users', uid), { lookingFor: newRole })
+          updated++
+        }
+      }
+      showToast('Updated ' + updated + ' members based on job postings')
+      loadUsers()
+    } catch(err) { showToast('Error: ' + err.message) }
+    finally { setLoading(false) }
+  }
+
   async function addSkill() {
     const name = newSkill.trim()
     if (!name || skills.find(s => s.name?.toLowerCase() === name.toLowerCase())) { showToast('Already exists'); return }
@@ -482,6 +507,16 @@ export default function AdminPage() {
       {tab === 'users' && (
         <div>
           {loading && <p style={{ color:'var(--muted)' }}>Loading…</p>}
+          {/* Auto-fix roles banner */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', background:'var(--gold-pale)', border:'1px solid var(--gold)', borderRadius:'var(--radius)', marginBottom:16 }}>
+            <div style={{ fontSize:'13px', color:'var(--slate)' }}>
+              <strong style={{ color:'var(--gold)' }}>Auto-fix roles</strong> — set job posters as Employer so they don't appear in the candidate list
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={fixRolesFromJobPostings} disabled={loading}>
+              🔧 Fix Roles from Job Postings
+            </button>
+          </div>
+
           <div style={{ fontSize:'14px', color:'var(--muted)', marginBottom:12 }}>{users.length} registered members</div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {users.map(u => (
@@ -578,6 +613,25 @@ export default function AdminPage() {
                         <a href={u.linkedinUrl} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm" style={{ marginBottom:12 }}>🔗 LinkedIn / Website</a>
                       )}
 
+
+                      {/* Role selector */}
+                      <div style={{ marginBottom:10 }}>
+                        <div style={{ fontSize:'11px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:6 }}>Member Role</div>
+                        <select className="form-control" style={{ width:180, fontSize:'13px', padding:'5px 10px' }}
+                          value={u.lookingFor || 'job'}
+                          onChange={async e => {
+                            await updateDoc(doc(db, 'nj_users', u.id), { lookingFor: e.target.value })
+                            setUsers(us => us.map(x => x.id === u.id ? { ...x, lookingFor: e.target.value } : x))
+                            showToast('Role updated for ' + (u.displayName || 'member'))
+                          }}>
+                          <option value="job">🔍 Job Seeker</option>
+                          <option value="hire">💼 Employer</option>
+                          <option value="both">🤝 Both</option>
+                        </select>
+                        <div style={{ fontSize:'11px', color:'var(--muted)', marginTop:4 }}>
+                          Only Job Seekers and Both appear in the Candidates list
+                        </div>
+                      </div>
                       {/* Admin actions */}
                       <div style={{ display:'flex', gap:8, paddingTop:10, borderTop:'1px solid var(--border)' }}>
                         <button className="btn btn-ghost btn-sm" onClick={() => toggleUserRole(u)}>
